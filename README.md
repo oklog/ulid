@@ -2,7 +2,7 @@
 
 ![Project status](https://img.shields.io/badge/version-0.1.0-yellow.svg)
 [![Build Status](https://secure.travis-ci.org/oklog/ulid.png)](http://travis-ci.org/oklog/ulid)
-[![Go Report Card](https://goreportcard.com/badge/oklog/ulid)](https://goreportcard.com/report/oklog/ulid)
+[![Go Report Card](https://goreportcard.com/badge/oklog/ulid?cache=0)](https://goreportcard.com/report/oklog/ulid)
 [![Coverage Status](https://coveralls.io/repos/github/oklog/ulid/badge.svg?branch=master)](https://coveralls.io/github/oklog/ulid?branch=master)
 [![GoDoc](https://godoc.org/github.com/oklog/ulid?status.svg)](https://godoc.org/github.com/oklog/ulid)
 [![Apache 2 licensed](https://img.shields.io/badge/license-Apache2-blue.svg)](https://raw.githubusercontent.com/oklog/ulid/master/LICENSE)
