@@ -63,6 +63,7 @@ Below is the current specification of ULID as implemented in this repository.
 
 **Entropy**
 - 80 bits
+- User defined entropy source.
 
 ### Encoding
 
