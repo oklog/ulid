@@ -428,7 +428,7 @@ func BenchmarkSetTime(b *testing.B) {
 	}
 }
 
-func BencharkEntropy(b *testing.B) {
+func BenchmarkEntropy(b *testing.B) {
 	id := ulid.MustNew(0, strings.NewReader("ABCDEFGHIJKLMNOP"))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

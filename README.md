@@ -130,6 +130,8 @@ BenchmarkUnmarshal/Binary-8         300000000     4.88 ns/op     0 B/op    0 all
 BenchmarkNow-8                      50000000      37.6 ns/op     0 B/op    0 allocs/op
 BenchmarkTimestamp-8                50000000      24.9 ns/op     0 B/op    0 allocs/op
 BenchmarkTime-8                     2000000000    0.57 ns/op     0 B/op    0 allocs/op
+BenchmarkSetTime-8                  2000000000    0.84 ns/op     0 B/op    0 allocs/op
+BenchmarkEntropy-8                  200000000     7.44 ns/op     0 B/op    0 allocs/op
 BenchmarkSetEntropy-8               2000000000    0.86 ns/op     0 B/op    0 allocs/op
 ```
 
