@@ -218,6 +218,23 @@ func TestLexicographicalOrder(t *testing.T) {
 	}
 }
 
+func TestCaseInsensitivity(t *testing.T) {
+	t.Parallel()
+
+	upper := func(id ulid.ULID) (out ulid.ULID) {
+		return ulid.MustParse(strings.ToUpper(id.String()))
+	}
+
+	lower := func(id ulid.ULID) (out ulid.ULID) {
+		return ulid.MustParse(strings.ToLower(id.String()))
+	}
+
+	err := quick.CheckEqual(upper, lower, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestNow(t *testing.T) {
 	t.Parallel()
 
