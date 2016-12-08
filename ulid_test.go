@@ -235,6 +235,31 @@ func TestCaseInsensitivity(t *testing.T) {
 	}
 }
 
+func TestParseRobustness(t *testing.T) {
+	t.Parallel()
+
+	prop := func(s [26]byte) (ok bool) {
+		defer func() {
+			if err := recover(); err != nil {
+				t.Error(err)
+				ok = false
+			}
+		}()
+
+		var err error
+		if _, err = ulid.Parse(string(s[:])); err != nil {
+			t.Error(err)
+		}
+
+		return err == nil
+	}
+
+	err := quick.Check(prop, &quick.Config{MaxCount: 1E4})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestNow(t *testing.T) {
 	t.Parallel()
 
