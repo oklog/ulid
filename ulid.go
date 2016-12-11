@@ -283,10 +283,10 @@ func Now() uint64 { return Timestamp(time.Now().UTC()) }
 // Timestamp converts a time.Time to Unix milliseconds.
 //
 // BUG(tsenart): Because of the way time.Time is internally
-// represented, times from the year 2262 on have undefined
+// represented, times from the year 4524 on have undefined
 // results.
 func Timestamp(t time.Time) uint64 {
-	return uint64(t.Truncate(time.Millisecond).UnixNano() / int64(time.Millisecond))
+	return uint64(t.Unix())*1000 + uint64(t.Nanosecond()/int(time.Millisecond))
 }
 
 // SetTime sets the time component of the ULID to the given Unix time
