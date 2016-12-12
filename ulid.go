@@ -276,17 +276,19 @@ var maxTime = ULID{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}.Time()
 func MaxTime() uint64 { return maxTime }
 
 // Now is a convenience function that returns the current
-// UTC time in Unix miliseconds. Equivalent to:
+// UTC time in Unix milliseconds. Equivalent to:
 //   Timestamp(time.Now().UTC())
 func Now() uint64 { return Timestamp(time.Now().UTC()) }
 
 // Timestamp converts a time.Time to Unix milliseconds.
 //
-// BUG(tsenart): Because of the way time.Time is internally
-// represented, times from the year 4524 on have undefined
-// results.
+// Because of the way ULID stores time, times from the year
+// 10889 has undefined results.
 func Timestamp(t time.Time) uint64 {
-	return uint64(t.Unix())*1000 + uint64(t.Nanosecond()/int(time.Millisecond))
+	// t.Unix() returns seconds since epoch
+	return uint64(t.Unix())*1000 +
+		// t.NanoSecond() returns the nanoseconds in the last second.
+		uint64(t.Nanosecond()/int(time.Millisecond))
 }
 
 // SetTime sets the time component of the ULID to the given Unix time
