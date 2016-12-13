@@ -283,11 +283,9 @@ func Now() uint64 { return Timestamp(time.Now().UTC()) }
 // Timestamp converts a time.Time to Unix milliseconds.
 //
 // Because of the way ULID stores time, times from the year
-// 10889 has undefined results.
+// 10889 produces undefined results.
 func Timestamp(t time.Time) uint64 {
-	// t.Unix() returns seconds since epoch
 	return uint64(t.Unix())*1000 +
-		// t.NanoSecond() returns the nanoseconds in the last second.
 		uint64(t.Nanosecond()/int(time.Millisecond))
 }
 
