@@ -278,6 +278,13 @@ func TestTimestamp(t *testing.T) {
 	if got, want := ulid.Timestamp(tm), uint64(1000); got != want {
 		t.Errorf("for %v, got %v, want %v", tm, got, want)
 	}
+
+	mt := ulid.MaxTime()
+	dt := time.Unix(int64(mt/1000), int64((mt%1000)*1000000)).Truncate(time.Millisecond)
+	ts := ulid.Timestamp(dt)
+	if got, want := ts, mt; got != want {
+		t.Errorf("got timestamp %d, want %d", got, want)
+	}
 }
 
 func TestTime(t *testing.T) {
