@@ -15,6 +15,7 @@ package ulid_test
 
 import (
 	"bytes"
+	crand "crypto/rand"
 	"fmt"
 	"io"
 	"math/rand"
@@ -341,6 +342,12 @@ func TestEntropy(t *testing.T) {
 }
 
 func BenchmarkNew(b *testing.B) {
+	b.Run("WithCryptoEntropy", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_, _ = ulid.New(123, crand.Reader)
+		}
+	})
+
 	b.Run("WithEntropy", func(b *testing.B) {
 		now := time.Now().UTC()
 		entropy := rand.New(rand.NewSource(now.UnixNano()))
@@ -359,6 +366,12 @@ func BenchmarkNew(b *testing.B) {
 }
 
 func BenchmarkMustNew(b *testing.B) {
+	b.Run("WithCryptoEntropy", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			_ = ulid.MustNew(123, crand.Reader)
+		}
+	})
+
 	b.Run("WithEntropy", func(b *testing.B) {
 		now := time.Now().UTC()
 		entropy := rand.New(rand.NewSource(now.UnixNano()))
