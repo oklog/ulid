@@ -135,6 +135,7 @@ BenchmarkTime-8                       2000000000  0.58 ns/op   0 B/op  0 allocs/
 BenchmarkSetTime-8                    2000000000  0.85 ns/op   0 B/op  0 allocs/op
 BenchmarkEntropy-8                    200000000   7.17 ns/op   0 B/op  0 allocs/op
 BenchmarkSetEntropy-8                 2000000000  0.83 ns/op   0 B/op  0 allocs/op
+BenchmarkCompare-8                    200000000   6.99 ns/op   0 B/op  0 allocs/op
 ```
 
 ## Prior Art

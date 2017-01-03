@@ -533,3 +533,10 @@ func BenchmarkSetEntropy(b *testing.B) {
 		_ = id.SetEntropy(e)
 	}
 }
+
+func BenchmarkCompare(b *testing.B) {
+	id, other := ulid.MustNew(12345, nil), ulid.MustNew(54321, nil)
+	for i := 0; i < b.N; i++ {
+		_ = id.Compare(other)
+	}
+}
