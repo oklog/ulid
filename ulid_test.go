@@ -341,6 +341,23 @@ func TestEntropy(t *testing.T) {
 	}
 }
 
+func TestCompare(t *testing.T) {
+	t.Parallel()
+
+	a := func(a, b ulid.ULID) int {
+		return strings.Compare(a.String(), b.String())
+	}
+
+	b := func(a, b ulid.ULID) int {
+		return a.Compare(b)
+	}
+
+	err := quick.CheckEqual(a, b, &quick.Config{MaxCount: 1E5})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
 func BenchmarkNew(b *testing.B) {
 	b.Run("WithCryptoEntropy", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {

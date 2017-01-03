@@ -14,6 +14,7 @@
 package ulid
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"time"
@@ -322,4 +323,10 @@ func (id *ULID) SetEntropy(e []byte) error {
 
 	copy((*id)[6:], e)
 	return nil
+}
+
+// Compare returns an integer comparing id and other lexicographically.
+// The result will be 0 if id==other, -1 if id < other, and +1 if id > other.
+func (id ULID) Compare(other ULID) int {
+	return bytes.Compare(id[:], other[:])
 }
