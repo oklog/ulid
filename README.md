@@ -114,28 +114,28 @@ go test ./...
 On a Intel Core i7 Ivy Bridge 2.7 GHz, MacOS 10.12.1 and Go 1.8.0beta1
 
 ```
-BenchmarkNew/WithCryptoEntropy-8      2000000     747  ns/op  16 B/op  1 allocs/op
-BenchmarkNew/WithEntropy-8            20000000    63.9 ns/op  16 B/op  1 allocs/op
-BenchmarkNew/WithoutEntropy-8         50000000    29.4 ns/op  16 B/op  1 allocs/op
-BenchmarkMustNew/WithCryptoEntropy-8  2000000     744  ns/op  16 B/op  1 allocs/op
-BenchmarkMustNew/WithEntropy-8        20000000    68.0 ns/op  16 B/op  1 allocs/op
-BenchmarkMustNew/WithoutEntropy-8     50000000    34.0 ns/op  16 B/op  1 allocs/op
-BenchmarkParse-8                      50000000    30.6 ns/op   0 B/op  0 allocs/op
-BenchmarkMustParse-8                  50000000    36.2 ns/op   0 B/op  0 allocs/op
-BenchmarkString-8                     20000000    61.6 ns/op  32 B/op  1 allocs/op
-BenchmarkMarshal/Text-8               30000000    53.3 ns/op  32 B/op  1 allocs/op
-BenchmarkMarshal/TextTo-8             100000000   22.8 ns/op   0 B/op  0 allocs/op
-BenchmarkMarshal/Binary-8             300000000   4.40 ns/op   0 B/op  0 allocs/op
-BenchmarkMarshal/BinaryTo-8           2000000000  1.16 ns/op   0 B/op  0 allocs/op
-BenchmarkUnmarshal/Text-8             100000000   20.0 ns/op   0 B/op  0 allocs/op
-BenchmarkUnmarshal/Binary-8           300000000   5.25 ns/op   0 B/op  0 allocs/op
-BenchmarkNow-8                        100000000   14.3 ns/op   0 B/op  0 allocs/op
-BenchmarkTimestamp-8                  2000000000  0.29 ns/op   0 B/op  0 allocs/op
-BenchmarkTime-8                       2000000000  0.58 ns/op   0 B/op  0 allocs/op
-BenchmarkSetTime-8                    2000000000  0.85 ns/op   0 B/op  0 allocs/op
-BenchmarkEntropy-8                    200000000   7.17 ns/op   0 B/op  0 allocs/op
-BenchmarkSetEntropy-8                 2000000000  0.83 ns/op   0 B/op  0 allocs/op
-BenchmarkCompare-8                    200000000   6.99 ns/op   0 B/op  0 allocs/op
+BenchmarkNew/WithCryptoEntropy-8      2000000        771 ns/op      20.73 MB/s   16 B/op   1 allocs/op
+BenchmarkNew/WithEntropy-8            20000000      65.8 ns/op     243.01 MB/s   16 B/op   1 allocs/op
+BenchmarkNew/WithoutEntropy-8         50000000      30.0 ns/op     534.06 MB/s   16 B/op   1 allocs/op
+BenchmarkMustNew/WithCryptoEntropy-8  2000000        781 ns/op      20.48 MB/s   16 B/op   1 allocs/op
+BenchmarkMustNew/WithEntropy-8        20000000      70.0 ns/op     228.51 MB/s   16 B/op   1 allocs/op
+BenchmarkMustNew/WithoutEntropy-8     50000000      34.6 ns/op     462.98 MB/s   16 B/op   1 allocs/op
+BenchmarkParse-8                      50000000      30.0 ns/op     866.16 MB/s    0 B/op   0 allocs/op
+BenchmarkMustParse-8                  50000000      35.2 ns/op     738.94 MB/s    0 B/op   0 allocs/op
+BenchmarkString-8                     20000000      64.9 ns/op     246.40 MB/s   32 B/op   1 allocs/op
+BenchmarkMarshal/Text-8               20000000      55.8 ns/op     286.84 MB/s   32 B/op   1 allocs/op
+BenchmarkMarshal/TextTo-8             100000000     22.4 ns/op     714.91 MB/s    0 B/op   0 allocs/op
+BenchmarkMarshal/Binary-8             300000000     4.02 ns/op    3981.77 MB/s    0 B/op   0 allocs/op
+BenchmarkMarshal/BinaryTo-8           2000000000    1.18 ns/op   13551.75 MB/s    0 B/op   0 allocs/op
+BenchmarkUnmarshal/Text-8             100000000     20.5 ns/op    1265.27 MB/s    0 B/op   0 allocs/op
+BenchmarkUnmarshal/Binary-8           300000000     4.94 ns/op    3240.01 MB/s    0 B/op   0 allocs/op
+BenchmarkNow-8                        100000000     15.1 ns/op     528.09 MB/s    0 B/op   0 allocs/op
+BenchmarkTimestamp-8                  2000000000    0.29 ns/op   27271.59 MB/s    0 B/op   0 allocs/op
+BenchmarkTime-8                       2000000000    0.58 ns/op   13717.80 MB/s    0 B/op   0 allocs/op
+BenchmarkSetTime-8                    2000000000    0.89 ns/op    9023.95 MB/s    0 B/op   0 allocs/op
+BenchmarkEntropy-8                    200000000     7.62 ns/op    1311.66 MB/s    0 B/op   0 allocs/op
+BenchmarkSetEntropy-8                 2000000000    0.88 ns/op   11376.54 MB/s    0 B/op   0 allocs/op
+BenchmarkCompare-8                    200000000     7.34 ns/op    4359.23 MB/s    0 B/op   0 allocs/op
 ```
 
 ## Prior Art

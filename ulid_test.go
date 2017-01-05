@@ -371,6 +371,8 @@ func TestCompare(t *testing.T) {
 
 func BenchmarkNew(b *testing.B) {
 	b.Run("WithCryptoEntropy", func(b *testing.B) {
+		b.SetBytes(int64(len(ulid.ULID{})))
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_, _ = ulid.New(123, crand.Reader)
 		}
@@ -379,14 +381,17 @@ func BenchmarkNew(b *testing.B) {
 	b.Run("WithEntropy", func(b *testing.B) {
 		now := time.Now().UTC()
 		entropy := rand.New(rand.NewSource(now.UnixNano()))
-		b.ResetTimer()
 
+		b.SetBytes(int64(len(ulid.ULID{})))
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_, _ = ulid.New(123, entropy)
 		}
 	})
 
 	b.Run("WithoutEntropy", func(b *testing.B) {
+		b.SetBytes(int64(len(ulid.ULID{})))
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_, _ = ulid.New(123, nil)
 		}
@@ -395,6 +400,8 @@ func BenchmarkNew(b *testing.B) {
 
 func BenchmarkMustNew(b *testing.B) {
 	b.Run("WithCryptoEntropy", func(b *testing.B) {
+		b.SetBytes(int64(len(ulid.ULID{})))
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_ = ulid.MustNew(123, crand.Reader)
 		}
@@ -403,14 +410,17 @@ func BenchmarkMustNew(b *testing.B) {
 	b.Run("WithEntropy", func(b *testing.B) {
 		now := time.Now().UTC()
 		entropy := rand.New(rand.NewSource(now.UnixNano()))
-		b.ResetTimer()
 
+		b.SetBytes(int64(len(ulid.ULID{})))
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_ = ulid.MustNew(123, entropy)
 		}
 	})
 
 	b.Run("WithoutEntropy", func(b *testing.B) {
+		b.SetBytes(int64(len(ulid.ULID{})))
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_ = ulid.MustNew(123, nil)
 		}
@@ -419,6 +429,7 @@ func BenchmarkMustNew(b *testing.B) {
 
 func BenchmarkParse(b *testing.B) {
 	const s = "0000XSNJG0MQJHBF4QX1EFD6Y3"
+	b.SetBytes(int64(len(s)))
 	for i := 0; i < b.N; i++ {
 		_, _ = ulid.Parse(s)
 	}
@@ -426,6 +437,7 @@ func BenchmarkParse(b *testing.B) {
 
 func BenchmarkMustParse(b *testing.B) {
 	const s = "0000XSNJG0MQJHBF4QX1EFD6Y3"
+	b.SetBytes(int64(len(s)))
 	for i := 0; i < b.N; i++ {
 		_ = ulid.MustParse(s)
 	}
@@ -434,6 +446,7 @@ func BenchmarkMustParse(b *testing.B) {
 func BenchmarkString(b *testing.B) {
 	entropy := rand.New(rand.NewSource(time.Now().UnixNano()))
 	id := ulid.MustNew(123456, entropy)
+	b.SetBytes(int64(len(id)))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = id.String()
@@ -446,24 +459,32 @@ func BenchmarkMarshal(b *testing.B) {
 	id := ulid.MustNew(123456, entropy)
 
 	b.Run("Text", func(b *testing.B) {
+		b.SetBytes(int64(len(id)))
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_, _ = id.MarshalText()
 		}
 	})
 
 	b.Run("TextTo", func(b *testing.B) {
+		b.SetBytes(int64(len(id)))
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_ = id.MarshalTextTo(buf)
 		}
 	})
 
 	b.Run("Binary", func(b *testing.B) {
+		b.SetBytes(int64(len(id)))
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_, _ = id.MarshalBinary()
 		}
 	})
 
 	b.Run("BinaryTo", func(b *testing.B) {
+		b.SetBytes(int64(len(id)))
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_ = id.MarshalBinaryTo(buf)
 		}
@@ -477,12 +498,16 @@ func BenchmarkUnmarshal(b *testing.B) {
 	bin, _ := ulid.MustParse(s).MarshalBinary()
 
 	b.Run("Text", func(b *testing.B) {
+		b.SetBytes(int64(len(txt)))
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_ = id.UnmarshalText(txt)
 		}
 	})
 
 	b.Run("Binary", func(b *testing.B) {
+		b.SetBytes(int64(len(bin)))
+		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_ = id.UnmarshalBinary(bin)
 		}
@@ -490,6 +515,8 @@ func BenchmarkUnmarshal(b *testing.B) {
 }
 
 func BenchmarkNow(b *testing.B) {
+	b.SetBytes(8)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = ulid.Now()
 	}
@@ -497,6 +524,7 @@ func BenchmarkNow(b *testing.B) {
 
 func BenchmarkTimestamp(b *testing.B) {
 	now := time.Now()
+	b.SetBytes(8)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = ulid.Timestamp(now)
@@ -505,6 +533,7 @@ func BenchmarkTimestamp(b *testing.B) {
 
 func BenchmarkTime(b *testing.B) {
 	id := ulid.MustNew(123456789, nil)
+	b.SetBytes(8)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = id.Time()
@@ -513,6 +542,8 @@ func BenchmarkTime(b *testing.B) {
 
 func BenchmarkSetTime(b *testing.B) {
 	var id ulid.ULID
+	b.SetBytes(8)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = id.SetTime(123456789)
 	}
@@ -520,6 +551,7 @@ func BenchmarkSetTime(b *testing.B) {
 
 func BenchmarkEntropy(b *testing.B) {
 	id := ulid.MustNew(0, strings.NewReader("ABCDEFGHIJKLMNOP"))
+	b.SetBytes(10)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = id.Entropy()
@@ -529,6 +561,8 @@ func BenchmarkEntropy(b *testing.B) {
 func BenchmarkSetEntropy(b *testing.B) {
 	var id ulid.ULID
 	e := []byte("ABCDEFGHIJKLMNOP")
+	b.SetBytes(10)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = id.SetEntropy(e)
 	}
@@ -536,6 +570,8 @@ func BenchmarkSetEntropy(b *testing.B) {
 
 func BenchmarkCompare(b *testing.B) {
 	id, other := ulid.MustNew(12345, nil), ulid.MustNew(54321, nil)
+	b.SetBytes(int64(len(id) * 2))
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_ = id.Compare(other)
 	}
