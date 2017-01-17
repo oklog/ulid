@@ -14,7 +14,7 @@ A Go port of [alizain/ulid](https://github.com/alizain/ulid) with binary format 
 A GUID/UUID can be suboptimal for many use-cases because:
 
 - It isn't the most character efficient way of encoding 128 bits
-- UUID v1/v2 is impractical in many environments, as it requires access to a stable MAC address
+- UUID v1/v2 is impractical in many environments, as it requires access to a unique, stable MAC address
 - UUID v3/v5 requires a unique seed and produces randomly distributed IDs, which can cause fragmentation in many data structures
 - UUID v4 provides no other information than randomness which can cause fragmentation in many data structures
 
