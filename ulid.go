@@ -17,6 +17,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"math/rand"
 	"time"
 )
 
@@ -70,6 +71,13 @@ func New(ms uint64, entropy io.Reader) (id ULID, err error) {
 	}
 
 	return id, err
+}
+
+// NewFromTime return an ULID with the given time using the UnixNano() as
+// source seed.
+func NewFromTime(t time.Time) (id ULID, err error) {
+	entropy := rand.New(rand.NewSource(t.UnixNano()))
+	return New(Timestamp(t), entropy)
 }
 
 // MustNew is a convenience function equivalent to New that panics on failure
