@@ -369,6 +369,66 @@ func TestCompare(t *testing.T) {
 	}
 }
 
+func TestValue(t *testing.T) {
+	t.Parallel()
+
+	prop := func(id ulid.ULID) bool {
+		val, err := id.Value()
+		if err != nil {
+			t.Errorf("Error getting ULID value: %s", err)
+		}
+		got := val.([]byte)
+		return bytes.Equal(id[:], got[:])
+	}
+
+	err := quick.Check(prop, &quick.Config{MaxCount: 1E5})
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestScan(t *testing.T) {
+	t.Parallel()
+
+	t.Run("binary", func(t *testing.T) {
+		prop := func(id ulid.ULID) bool {
+			var got ulid.ULID
+			err := got.Scan(id[:])
+			if err != nil {
+				t.Errorf("Error scanning ULID value: %s", err)
+			}
+			return bytes.Equal(id[:], got[:])
+		}
+
+		err := quick.Check(prop, &quick.Config{MaxCount: 1E5})
+		if err != nil {
+			t.Error(err)
+		}
+	})
+
+	t.Run("string", func(t *testing.T) {
+		prop := func(id ulid.ULID) bool {
+			var got ulid.ULID
+			err := got.Scan(id.String())
+			if err != nil {
+				t.Errorf("Error scanning ULID value: %s", err)
+			}
+			return id.String() == got.String()
+		}
+
+		err := quick.Check(prop, &quick.Config{MaxCount: 1E5})
+		if err != nil {
+			t.Error(err)
+		}
+	})
+
+	t.Run("other", func(t *testing.T) {
+		if got, want := new(ulid.ULID).Scan(int(2)), ulid.ErrDataType; got != want {
+			t.Errorf("got err %T, want %T", got, want)
+		}
+	})
+}
+
 func BenchmarkNew(b *testing.B) {
 	b.Run("WithCryptoEntropy", func(b *testing.B) {
 		b.SetBytes(int64(len(ulid.ULID{})))
