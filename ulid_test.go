@@ -30,7 +30,7 @@ import (
 func ExampleULID() {
 	t := time.Unix(1000000, 0)
 	entropy := rand.New(rand.NewSource(t.UnixNano()))
-	fmt.Println(ulid.MustNew(ulid.Timestamp(t), entropy))
+	fmt.Println(ulid.MustNewFromTime(t, entropy))
 	// Output: 0000XSNJG0MQJHBF4QX1EFD6Y3
 }
 
@@ -38,7 +38,7 @@ func TestNew(t *testing.T) {
 	t.Parallel()
 
 	t.Run("ULID", testULID(func(ms uint64, e io.Reader) ulid.ULID {
-		id, err := ulid.New(ms, e)
+		id, err := ulid.NewFromUnixMillis(ms, e)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -46,12 +46,12 @@ func TestNew(t *testing.T) {
 	}))
 
 	t.Run("Error", func(t *testing.T) {
-		_, err := ulid.New(ulid.MaxTime()+1, nil)
+		_, err := ulid.NewFromUnixMillis(ulid.MaxUnixMillis()+1, nil)
 		if got, want := err, ulid.ErrBigTime; got != want {
 			t.Errorf("got err %v, want %v", got, want)
 		}
 
-		_, err = ulid.New(0, strings.NewReader(""))
+		_, err = ulid.NewFromUnixMillis(0, strings.NewReader(""))
 		if got, want := err, io.EOF; got != want {
 			t.Errorf("got err %v, want %v", got, want)
 		}
@@ -61,7 +61,7 @@ func TestNew(t *testing.T) {
 func TestMustNew(t *testing.T) {
 	t.Parallel()
 
-	t.Run("ULID", testULID(ulid.MustNew))
+	t.Run("ULID", testULID(ulid.MustNewFromUnixMillis))
 
 	t.Run("Panic", func(t *testing.T) {
 		defer func() {
@@ -69,7 +69,7 @@ func TestMustNew(t *testing.T) {
 				t.Errorf("panic with err %v, want %v", got, want)
 			}
 		}()
-		_ = ulid.MustNew(0, strings.NewReader(""))
+		_ = ulid.MustNewFromUnixMillis(0, strings.NewReader(""))
 	})
 }
 
@@ -161,7 +161,7 @@ func TestAlizainCompatibility(t *testing.T) {
 	t.Parallel()
 
 	ts := uint64(1469918176385)
-	got := ulid.MustNew(ts, bytes.NewReader(make([]byte, 16)))
+	got := ulid.MustNewFromUnixMillis(ts, bytes.NewReader(make([]byte, 16)))
 	want := ulid.MustParse("01ARYZ6S410000000000000000")
 	if got != want {
 		t.Fatalf("with time=%d, got %q, want %q", ts, got, want)
@@ -194,7 +194,7 @@ func TestLexicographicalOrder(t *testing.T) {
 	t.Parallel()
 
 	prop := func(a, b ulid.ULID) bool {
-		t1, t2 := a.Time(), b.Time()
+		t1, t2 := a.UnixMillis(), b.UnixMillis()
 		s1, s2 := a.String(), b.String()
 		ord := bytes.Compare(a[:], b[:])
 		return t1 == t2 ||
@@ -202,13 +202,13 @@ func TestLexicographicalOrder(t *testing.T) {
 			(t1 < t2 && s1 < s2 && ord == -1)
 	}
 
-	top := ulid.MustNew(ulid.MaxTime(), nil)
+	top := ulid.MustNewFromUnixMillis(ulid.MaxUnixMillis(), nil)
 	for i := 0; i < 10; i++ { // test upper boundary state space
-		next := ulid.MustNew(top.Time()-1, nil)
+		next := ulid.MustNewFromUnixMillis(top.UnixMillis()-1, nil)
 		if !prop(top, next) {
 			t.Fatalf("bad lexicographical order: (%v, %q) > (%v, %q) == false",
-				top.Time(), top,
-				next.Time(), next,
+				top.UnixMillis(), top,
+				next.UnixMillis(), next,
 			)
 		}
 		top = next
@@ -291,7 +291,7 @@ func TestTimestamp(t *testing.T) {
 		t.Errorf("for %v, got %v, want %v", tm, got, want)
 	}
 
-	mt := ulid.MaxTime()
+	mt := ulid.MaxUnixMillis()
 	dt := time.Unix(int64(mt/1000), int64((mt%1000)*1000000)).Truncate(time.Millisecond)
 	ts := ulid.Timestamp(dt)
 	if got, want := ts, mt; got != want {
@@ -302,10 +302,10 @@ func TestTimestamp(t *testing.T) {
 func TestTime(t *testing.T) {
 	t.Parallel()
 
-	maxTime := ulid.MaxTime()
+	maxTime := ulid.MaxUnixMillis()
 
 	var id ulid.ULID
-	if got, want := id.SetTime(maxTime+1), ulid.ErrBigTime; got != want {
+	if got, want := id.SetUnixMillis(maxTime+1), ulid.ErrBigTime; got != want {
 		t.Errorf("got err %v, want %v", got, want)
 	}
 
@@ -314,11 +314,11 @@ func TestTime(t *testing.T) {
 		ms := uint64(rng.Int63n(int64(maxTime)))
 
 		var id ulid.ULID
-		if err := id.SetTime(ms); err != nil {
+		if err := id.SetUnixMillis(ms); err != nil {
 			t.Fatal(err)
 		}
 
-		if got, want := id.Time(), ms; got != want {
+		if got, want := id.UnixMillis(), ms; got != want {
 			t.Fatalf("\nfor %v:\ngot  %v\nwant %v", id, got, want)
 		}
 	}
@@ -374,7 +374,7 @@ func BenchmarkNew(b *testing.B) {
 		b.SetBytes(int64(len(ulid.ULID{})))
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_, _ = ulid.New(123, crand.Reader)
+			_, _ = ulid.NewFromUnixMillis(123, crand.Reader)
 		}
 	})
 
@@ -385,7 +385,7 @@ func BenchmarkNew(b *testing.B) {
 		b.SetBytes(int64(len(ulid.ULID{})))
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_, _ = ulid.New(123, entropy)
+			_, _ = ulid.NewFromUnixMillis(123, entropy)
 		}
 	})
 
@@ -393,7 +393,7 @@ func BenchmarkNew(b *testing.B) {
 		b.SetBytes(int64(len(ulid.ULID{})))
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_, _ = ulid.New(123, nil)
+			_, _ = ulid.NewFromUnixMillis(123, nil)
 		}
 	})
 }
@@ -403,7 +403,7 @@ func BenchmarkMustNew(b *testing.B) {
 		b.SetBytes(int64(len(ulid.ULID{})))
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = ulid.MustNew(123, crand.Reader)
+			_ = ulid.MustNewFromUnixMillis(123, crand.Reader)
 		}
 	})
 
@@ -414,7 +414,7 @@ func BenchmarkMustNew(b *testing.B) {
 		b.SetBytes(int64(len(ulid.ULID{})))
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = ulid.MustNew(123, entropy)
+			_ = ulid.MustNewFromUnixMillis(123, entropy)
 		}
 	})
 
@@ -422,7 +422,7 @@ func BenchmarkMustNew(b *testing.B) {
 		b.SetBytes(int64(len(ulid.ULID{})))
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
-			_ = ulid.MustNew(123, nil)
+			_ = ulid.MustNewFromUnixMillis(123, nil)
 		}
 	})
 }
@@ -445,7 +445,7 @@ func BenchmarkMustParse(b *testing.B) {
 
 func BenchmarkString(b *testing.B) {
 	entropy := rand.New(rand.NewSource(time.Now().UnixNano()))
-	id := ulid.MustNew(123456, entropy)
+	id := ulid.MustNewFromUnixMillis(123456, entropy)
 	b.SetBytes(int64(len(id)))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -456,7 +456,7 @@ func BenchmarkString(b *testing.B) {
 func BenchmarkMarshal(b *testing.B) {
 	entropy := rand.New(rand.NewSource(time.Now().UnixNano()))
 	buf := make([]byte, ulid.EncodedSize)
-	id := ulid.MustNew(123456, entropy)
+	id := ulid.MustNewFromUnixMillis(123456, entropy)
 
 	b.Run("Text", func(b *testing.B) {
 		b.SetBytes(int64(len(id)))
@@ -532,7 +532,7 @@ func BenchmarkTimestamp(b *testing.B) {
 }
 
 func BenchmarkTime(b *testing.B) {
-	id := ulid.MustNew(123456789, nil)
+	id := ulid.MustNewFromUnixMillis(123456789, nil)
 	b.SetBytes(8)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -545,12 +545,12 @@ func BenchmarkSetTime(b *testing.B) {
 	b.SetBytes(8)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = id.SetTime(123456789)
+		_ = id.SetUnixMillis(123456789)
 	}
 }
 
 func BenchmarkEntropy(b *testing.B) {
-	id := ulid.MustNew(0, strings.NewReader("ABCDEFGHIJKLMNOP"))
+	id := ulid.MustNewFromUnixMillis(0, strings.NewReader("ABCDEFGHIJKLMNOP"))
 	b.SetBytes(10)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -569,7 +569,7 @@ func BenchmarkSetEntropy(b *testing.B) {
 }
 
 func BenchmarkCompare(b *testing.B) {
-	id, other := ulid.MustNew(12345, nil), ulid.MustNew(54321, nil)
+	id, other := ulid.MustNewFromUnixMillis(12345, nil), ulid.MustNewFromUnixMillis(54321, nil)
 	b.SetBytes(int64(len(id) * 2))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
