@@ -1,8 +1,10 @@
 language: go
 sudo: false
 go:
-  - 1.7.4
-  - tip
+  - 1.7.x
+  - 1.8.x
+  - 1.9.x
+  - master
 install:
   - go get -v github.com/golang/lint/golint
   - go get golang.org/x/tools/cmd/cover
