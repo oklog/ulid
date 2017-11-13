@@ -15,6 +15,7 @@ package ulid
 
 import (
 	"bytes"
+	"database/sql/driver"
 	"errors"
 	"io"
 	"time"
@@ -44,6 +45,10 @@ var (
 	// ErrDataSize is returned when parsing or unmarshaling ULIDs with the wrong
 	// data size.
 	ErrDataSize = errors.New("ulid: bad data size when unmarshaling")
+
+	// ErrDataType is returned when an unsupported type is attempted to be scanned
+	// from a database.
+	ErrDataType = errors.New("ulid: cannot scan value to a ULID")
 
 	// ErrBufferSize is returned when marshalling ULIDs to a buffer of insufficient
 	// size.
@@ -329,4 +334,26 @@ func (id *ULID) SetEntropy(e []byte) error {
 // The result will be 0 if id==other, -1 if id < other, and +1 if id > other.
 func (id ULID) Compare(other ULID) int {
 	return bytes.Compare(id[:], other[:])
+}
+
+// Value implements the driver.Valuer interface.
+func (id ULID) Value() (driver.Value, error) {
+	return id.MarshalBinary()
+}
+
+// Scan implements the sql.Scanner interface.
+// Strings are handled with UnmarshalText.
+// Whereas a byte slice is handled with UnmarshalBinary if it's 16 bytes long.
+func (id *ULID) Scan(src interface{}) error {
+	switch src := src.(type) {
+	case string:
+		return id.UnmarshalText([]byte(src))
+	case []byte:
+		if len(src) == 16 {
+			return id.UnmarshalBinary(src)
+		}
+		return id.UnmarshalText(src)
+	}
+
+	return ErrDataType
 }
