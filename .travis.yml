@@ -1,8 +1,10 @@
 language: go
 sudo: false
 go:
-  - 1.7.4
-  - tip
+  - 1.7.x
+  - 1.8.x
+  - 1.9.x
+  - master
 env:
   - COVERALLS_TOKEN=1DndLGOn2URLtVJyuVXFSNKU3Jd8n8mE0
 install:
