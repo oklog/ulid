@@ -12,7 +12,10 @@ import (
 	getopt "github.com/pborman/getopt/v2"
 )
 
-const rfc3339ms = "2006-01-02T15:04:05.999Z"
+const (
+	defaultms = "Mon Jan 02 15:04:05.999 MST 2006"
+	rfc3339ms = "2006-01-02T15:04:05.999MST"
+)
 
 func main() {
 	// Completely obnoxious.
@@ -21,7 +24,7 @@ func main() {
 
 	fs := getopt.New()
 	var (
-		format = fs.StringLong("format", 'f', "rfc3339", "when decoding, show times in this format: rfc3339, unix, ms (default: rfc3339)", "<format>")
+		format = fs.StringLong("format", 'f', "default", "when decoding, show times in this format: default, rfc3339, unix, ms", "<format>")
 		local  = fs.BoolLong("local", 'l', "when generating, use local time instead of UTC")
 		quick  = fs.BoolLong("quick", 'q', "when generating, use non-crypto-grade entropy")
 		zero   = fs.BoolLong("zero", 'z', "when generating, fix entropy to all-zeroes")
@@ -38,6 +41,8 @@ func main() {
 
 	var formatFunc func(time.Time) string
 	switch strings.ToLower(*format) {
+	case "default":
+		formatFunc = func(t time.Time) string { return t.Format(defaultms) }
 	case "rfc3339":
 		formatFunc = func(t time.Time) string { return t.Format(rfc3339ms) }
 	case "unix":
@@ -45,7 +50,7 @@ func main() {
 	case "ms":
 		formatFunc = func(t time.Time) string { return fmt.Sprint(t.UnixNano() / 1e6) }
 	default:
-		fmt.Fprintf(os.Stderr, "invalid -format %s\n", *format)
+		fmt.Fprintf(os.Stderr, "invalid --format %s\n", *format)
 		os.Exit(1)
 	}
 
