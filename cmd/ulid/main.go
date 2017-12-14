@@ -22,7 +22,7 @@ func main() {
 	fs := getopt.New()
 	var (
 		format = fs.StringLong("format", 'f', "rfc3339", "when decoding, show times in this format: rfc3339, unix, ms (default: rfc3339)", "<format>")
-		local  = fs.BoolLong("local", 'l', "when decoding, use local time instead of UTC")
+		local  = fs.BoolLong("local", 'l', "when generating, use local time instead of UTC")
 		quick  = fs.BoolLong("quick", 'q', "when generating, use non-crypto-grade entropy")
 		zero   = fs.BoolLong("zero", 'z', "when generating, fix entropy to all-zeroes")
 		help   = fs.BoolLong("help", 'h', "print this help text")
