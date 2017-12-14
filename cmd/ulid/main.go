@@ -54,11 +54,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	switch len(fs.Args()) {
+	switch args := fs.Args(); len(args) {
 	case 0:
 		generate(*quick, *zero)
 	default:
-		parse(fs.Args()[0], *local, formatFunc)
+		parse(args[0], *local, formatFunc)
 	}
 }
 
