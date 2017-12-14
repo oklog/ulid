@@ -2,7 +2,6 @@ package main
 
 import (
 	cryptorand "crypto/rand"
-	"flag"
 	"fmt"
 	mathrand "math/rand"
 	"os"
@@ -10,18 +9,32 @@ import (
 	"time"
 
 	"github.com/oklog/ulid"
+	getopt "github.com/pborman/getopt/v2"
 )
 
 const rfc3339ms = "2006-01-02T15:04:05.999Z"
 
 func main() {
+	// Completely obnoxious.
+	getopt.HelpColumn = 50
+	getopt.DisplayWidth = 140
+
+	fs := getopt.New()
 	var (
-		format = flag.String("format", "rfc3339", "rfc3339, unix, ms (decoding)")
-		local  = flag.Bool("local", false, "use local time instead of UTC (decoding)")
-		fast   = flag.Bool("fast", false, "use non-crypto-grade entropy (encoding)")
-		zero   = flag.Bool("zero", false, "fix entropy to zero (encoding)")
+		format = fs.StringLong("format", 'f', "rfc3339", "when decoding, show times in this format: rfc3339, unix, ms (default: rfc3339)", "<format>")
+		local  = fs.BoolLong("local", 'l', "when decoding, use local time instead of UTC")
+		quick  = fs.BoolLong("quick", 'q', "when generating, use non-crypto-grade entropy")
+		zero   = fs.BoolLong("zero", 'z', "when generating, fix entropy to all-zeroes")
+		help   = fs.BoolLong("help", 'h', "print this help text")
 	)
-	flag.Parse()
+	if err := fs.Getopt(os.Args, nil); err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+		os.Exit(1)
+	}
+	if *help {
+		fs.PrintUsage(os.Stderr)
+		os.Exit(0)
+	}
 
 	var formatFunc func(time.Time) string
 	switch strings.ToLower(*format) {
@@ -36,15 +49,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	switch len(flag.Args()) {
+	switch len(fs.Args()) {
 	case 0:
-		generate(*local, *fast, *zero)
+		generate(*local, *quick, *zero)
 	default:
-		parse(flag.Args()[0], formatFunc)
+		parse(fs.Args()[0], formatFunc)
 	}
 }
 
-func generate(local, fast, zero bool) {
+func generate(local, quick, zero bool) {
 	now := time.Now()
 	if !local {
 		now = now.UTC()
@@ -52,7 +65,7 @@ func generate(local, fast, zero bool) {
 	ts := ulid.Timestamp(now)
 
 	entropy := cryptorand.Reader
-	if fast {
+	if quick {
 		seed := time.Now().UnixNano()
 		source := mathrand.NewSource(seed)
 		entropy = mathrand.New(source)
