@@ -369,6 +369,21 @@ func TestCompare(t *testing.T) {
 	}
 }
 
+func TestOverflowHandling(t *testing.T) {
+	for s, want := range map[string]error{
+		"00000000000000000000000000": nil,
+		"70000000000000000000000000": nil,
+		"7ZZZZZZZZZZZZZZZZZZZZZZZZZ": nil,
+		"80000000000000000000000000": ulid.ErrOverflow,
+		"80000000000000000000000001": ulid.ErrOverflow,
+		"ZZZZZZZZZZZZZZZZZZZZZZZZZZ": ulid.ErrOverflow,
+	} {
+		if _, have := ulid.Parse(s); want != have {
+			t.Errorf("%s: want error %v, have %v", s, want, have)
+		}
+	}
+}
+
 func BenchmarkNew(b *testing.B) {
 	b.Run("WithCryptoEntropy", func(b *testing.B) {
 		b.SetBytes(int64(len(ulid.ULID{})))
