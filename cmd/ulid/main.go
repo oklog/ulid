@@ -51,19 +51,13 @@ func main() {
 
 	switch len(fs.Args()) {
 	case 0:
-		generate(*local, *quick, *zero)
+		generate(*quick, *zero)
 	default:
-		parse(fs.Args()[0], formatFunc)
+		parse(fs.Args()[0], *local, formatFunc)
 	}
 }
 
-func generate(local, quick, zero bool) {
-	now := time.Now()
-	if !local {
-		now = now.UTC()
-	}
-	ts := ulid.Timestamp(now)
-
+func generate(quick, zero bool) {
 	entropy := cryptorand.Reader
 	if quick {
 		seed := time.Now().UnixNano()
@@ -74,7 +68,7 @@ func generate(local, quick, zero bool) {
 		entropy = zeroReader{}
 	}
 
-	id, err := ulid.New(ts, entropy)
+	id, err := ulid.New(ulid.Timestamp(time.Now()), entropy)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
@@ -83,7 +77,7 @@ func generate(local, quick, zero bool) {
 	fmt.Fprintf(os.Stdout, "%s\n", id)
 }
 
-func parse(s string, f func(time.Time) string) {
+func parse(s string, local bool, f func(time.Time) string) {
 	id, err := ulid.Parse(s)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
@@ -97,6 +91,9 @@ func parse(s string, f func(time.Time) string) {
 		nsec = rem * 1e6
 		t    = time.Unix(int64(sec), int64(nsec))
 	)
+	if !local {
+		t = t.UTC()
+	}
 	fmt.Fprintf(os.Stderr, "%s\n", f(t))
 }
 
