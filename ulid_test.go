@@ -258,6 +258,12 @@ func TestParseRobustness(t *testing.T) {
 			}
 		}()
 
+		// quick.Check doesn't constrain input,
+		// so we need to do so artificially.
+		if s[0] > '7' {
+			s[0] = '7'
+		}
+
 		var err error
 		if _, err = ulid.Parse(string(s[:])); err != nil {
 			t.Error(err)
