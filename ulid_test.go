@@ -157,6 +157,36 @@ func TestMarshalingErrors(t *testing.T) {
 	}
 }
 
+func TestUnmarshalInvalidCharacters(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name  string
+		input string
+	}
+	testCases := []testCase{}
+	base := "0000XSNJG0MQJHBF4QX1EFD6Y3"
+	for i := 0; i < ulid.EncodedSize; i++ {
+		testCases = append(testCases, testCase{
+			name:  fmt.Sprintf("Invalid 0xFF at index %d", i),
+			input: base[:i] + "\xff" + base[i+1:],
+		})
+		testCases = append(testCases, testCase{
+			name:  fmt.Sprintf("Invalid 0x00 at index %d", i),
+			input: base[:i] + "\x00" + base[i+1:],
+		})
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ulid.Parse(tt.input)
+			if err != ulid.ErrInvalidCharacters && err != ulid.ErrOverflow {
+				t.Errorf("Parse(%q): got err %v, want %v", tt.input, err, ulid.ErrInvalidCharacters)
+			}
+		})
+	}
+}
+
 func TestAlizainCompatibility(t *testing.T) {
 	t.Parallel()
 
@@ -245,7 +275,7 @@ func TestParseRobustness(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		if _, err := ulid.Parse(string(tc)); err != nil {
+		if _, err := ulid.Parse(string(tc)); err != nil && err != ulid.ErrInvalidCharacters {
 			t.Error(err)
 		}
 	}
@@ -264,12 +294,12 @@ func TestParseRobustness(t *testing.T) {
 			s[0] %= '7'
 		}
 
-		var err error
-		if _, err = ulid.Parse(string(s[:])); err != nil {
+		_, err := ulid.Parse(string(s[:]))
+		if err != nil && err != ulid.ErrInvalidCharacters {
 			t.Error(err)
+			return false
 		}
-
-		return err == nil
+		return true
 	}
 
 	err := quick.Check(prop, &quick.Config{MaxCount: 1E4})

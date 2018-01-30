@@ -1,2 +1,3 @@
 - Peter Bourgon (@peterbourgon)
 - Tomás Senart (@tsenart)
+- Matt Moyer (@mattmoyer)
