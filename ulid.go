@@ -46,6 +46,10 @@ var (
 	// data size.
 	ErrDataSize = errors.New("ulid: bad data size when unmarshaling")
 
+	// ErrInvalidCharacters is returned when parsing or unmarshaling ULIDs with
+	// invalid Base32 encodings.
+	ErrInvalidCharacters = errors.New("ulid: bad data characters when unmarshaling")
+
 	// ErrBufferSize is returned when marshalling ULIDs to a buffer of insufficient
 	// size.
 	ErrBufferSize = errors.New("ulid: bad buffer size when marshaling")
@@ -94,15 +98,110 @@ func MustNew(ms uint64, entropy io.Reader) ULID {
 // Parse parses an encoded ULID, returning an error in case of failure.
 //
 // ErrDataSize is returned if the len(ulid) is different from an encoded
-// ULID's length. Invalid encodings produce undefined ULIDs.
+// ULID's length. Invalid encodings produce undefined ULIDs. For a version that
+// returns an error instead, see ParseStrict.
 func Parse(ulid string) (id ULID, err error) {
-	return id, id.UnmarshalText([]byte(ulid))
+	return id, parse([]byte(ulid), false, &id)
+}
+
+// ParseStrict parses an encoded ULID, returning an error in case of failure.
+//
+// It is like Parse, but additionally validates that the parsed ULID consists
+// only of valid base32 characters. It is slightly slower than Parse.
+//
+// ErrDataSize is returned if the len(ulid) is different from an encoded
+// ULID's length. Invalid encodings return ErrInvalidCharacters.
+func ParseStrict(ulid string) (id ULID, err error) {
+	return id, parse([]byte(ulid), true, &id)
+}
+
+func parse(v []byte, strict bool, id *ULID) error {
+	// Check if a base32 encoded ULID is the right length.
+	if len(v) != EncodedSize {
+		return ErrDataSize
+	}
+
+	// Check if all the characters in a base32 encoded ULID are part of the
+	// expected base32 character set.
+	if strict &&
+		(dec[v[0]] == 0xFF ||
+			dec[v[1]] == 0xFF ||
+			dec[v[2]] == 0xFF ||
+			dec[v[3]] == 0xFF ||
+			dec[v[4]] == 0xFF ||
+			dec[v[5]] == 0xFF ||
+			dec[v[6]] == 0xFF ||
+			dec[v[7]] == 0xFF ||
+			dec[v[8]] == 0xFF ||
+			dec[v[9]] == 0xFF ||
+			dec[v[10]] == 0xFF ||
+			dec[v[11]] == 0xFF ||
+			dec[v[12]] == 0xFF ||
+			dec[v[13]] == 0xFF ||
+			dec[v[14]] == 0xFF ||
+			dec[v[15]] == 0xFF ||
+			dec[v[16]] == 0xFF ||
+			dec[v[17]] == 0xFF ||
+			dec[v[18]] == 0xFF ||
+			dec[v[19]] == 0xFF ||
+			dec[v[20]] == 0xFF ||
+			dec[v[21]] == 0xFF ||
+			dec[v[22]] == 0xFF ||
+			dec[v[23]] == 0xFF ||
+			dec[v[24]] == 0xFF ||
+			dec[v[25]] == 0xFF) {
+		return ErrInvalidCharacters
+	}
+
+	// Check if the first character in a base32 encoded ULID will overflow. This
+	// happens because the base32 representation encodes 130 bits, while the
+	// ULID is only 128 bits.
+	//
+	// See https://github.com/oklog/ulid/issues/9 for details.
+	if v[0] > '7' {
+		return ErrOverflow
+	}
+
+	// Use an optimized unrolled loop (from https://github.com/RobThree/NUlid)
+	// to decode a base32 ULID.
+
+	// 6 bytes timestamp (48 bits)
+	(*id)[0] = ((dec[v[0]] << 5) | dec[v[1]])
+	(*id)[1] = ((dec[v[2]] << 3) | (dec[v[3]] >> 2))
+	(*id)[2] = ((dec[v[3]] << 6) | (dec[v[4]] << 1) | (dec[v[5]] >> 4))
+	(*id)[3] = ((dec[v[5]] << 4) | (dec[v[6]] >> 1))
+	(*id)[4] = ((dec[v[6]] << 7) | (dec[v[7]] << 2) | (dec[v[8]] >> 3))
+	(*id)[5] = ((dec[v[8]] << 5) | dec[v[9]])
+
+	// 10 bytes of entropy (80 bits)
+	(*id)[6] = ((dec[v[10]] << 3) | (dec[v[11]] >> 2))
+	(*id)[7] = ((dec[v[11]] << 6) | (dec[v[12]] << 1) | (dec[v[13]] >> 4))
+	(*id)[8] = ((dec[v[13]] << 4) | (dec[v[14]] >> 1))
+	(*id)[9] = ((dec[v[14]] << 7) | (dec[v[15]] << 2) | (dec[v[16]] >> 3))
+	(*id)[10] = ((dec[v[16]] << 5) | dec[v[17]])
+	(*id)[11] = ((dec[v[18]] << 3) | dec[v[19]]>>2)
+	(*id)[12] = ((dec[v[19]] << 6) | (dec[v[20]] << 1) | (dec[v[21]] >> 4))
+	(*id)[13] = ((dec[v[21]] << 4) | (dec[v[22]] >> 1))
+	(*id)[14] = ((dec[v[22]] << 7) | (dec[v[23]] << 2) | (dec[v[24]] >> 3))
+	(*id)[15] = ((dec[v[24]] << 5) | dec[v[25]])
+
+	return nil
 }
 
 // MustParse is a convenience function equivalent to Parse that panics on failure
 // instead of returning an error.
 func MustParse(ulid string) ULID {
 	id, err := Parse(ulid)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+// MustParseStrict is a convenience function equivalent to ParseStrict that
+// panics on failure instead of returning an error.
+func MustParseStrict(ulid string) ULID {
+	id, err := ParseStrict(ulid)
 	if err != nil {
 		panic(err)
 	}
@@ -241,39 +340,7 @@ const EncodedSize = 26
 // ErrDataSize is returned if the len(v) is different from an encoded
 // ULID's length. Invalid encodings produce undefined ULIDs.
 func (id *ULID) UnmarshalText(v []byte) error {
-	// Optimized unrolled loop ahead.
-	// From https://github.com/RobThree/NUlid
-	if len(v) != EncodedSize {
-		return ErrDataSize
-	}
-
-	// Overflow checking.
-	// See https://github.com/oklog/ulid/issues/9
-	if v[0] > '7' {
-		return ErrOverflow
-	}
-
-	// 6 bytes timestamp (48 bits)
-	(*id)[0] = ((dec[v[0]] << 5) | dec[v[1]])
-	(*id)[1] = ((dec[v[2]] << 3) | (dec[v[3]] >> 2))
-	(*id)[2] = ((dec[v[3]] << 6) | (dec[v[4]] << 1) | (dec[v[5]] >> 4))
-	(*id)[3] = ((dec[v[5]] << 4) | (dec[v[6]] >> 1))
-	(*id)[4] = ((dec[v[6]] << 7) | (dec[v[7]] << 2) | (dec[v[8]] >> 3))
-	(*id)[5] = ((dec[v[8]] << 5) | dec[v[9]])
-
-	// 10 bytes of entropy (80 bits)
-	(*id)[6] = ((dec[v[10]] << 3) | (dec[v[11]] >> 2))
-	(*id)[7] = ((dec[v[11]] << 6) | (dec[v[12]] << 1) | (dec[v[13]] >> 4))
-	(*id)[8] = ((dec[v[13]] << 4) | (dec[v[14]] >> 1))
-	(*id)[9] = ((dec[v[14]] << 7) | (dec[v[15]] << 2) | (dec[v[16]] >> 3))
-	(*id)[10] = ((dec[v[16]] << 5) | dec[v[17]])
-	(*id)[11] = ((dec[v[18]] << 3) | dec[v[19]]>>2)
-	(*id)[12] = ((dec[v[19]] << 6) | (dec[v[20]] << 1) | (dec[v[21]] >> 4))
-	(*id)[13] = ((dec[v[21]] << 4) | (dec[v[22]] >> 1))
-	(*id)[14] = ((dec[v[22]] << 7) | (dec[v[23]] << 2) | (dec[v[24]] >> 3))
-	(*id)[15] = ((dec[v[24]] << 5) | dec[v[25]])
-
-	return nil
+	return parse(v, false, id)
 }
 
 // Time returns the Unix time in milliseconds encoded in the ULID.
