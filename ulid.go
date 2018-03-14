@@ -52,6 +52,10 @@ var (
 	// ErrBigTime is returned when constructing an ULID with a time that is larger
 	// than MaxTime.
 	ErrBigTime = errors.New("ulid: time too big")
+
+	// ErrOverflow is returned when unmarshaling a ULID whose first character is
+	// larger than 7, thereby exceeding the valid bit depth of 128.
+	ErrOverflow = errors.New("ulid: overflow when unmarshaling")
 )
 
 // New returns an ULID with the given Unix milliseconds timestamp and an
@@ -236,6 +240,12 @@ func (id *ULID) UnmarshalText(v []byte) error {
 	// From https://github.com/RobThree/NUlid
 	if len(v) != EncodedSize {
 		return ErrDataSize
+	}
+
+	// Overflow checking.
+	// See https://github.com/oklog/ulid/issues/9
+	if v[0] > '7' {
+		return ErrOverflow
 	}
 
 	// 6 bytes timestamp (48 bits)

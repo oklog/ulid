@@ -258,6 +258,12 @@ func TestParseRobustness(t *testing.T) {
 			}
 		}()
 
+		// quick.Check doesn't constrain input,
+		// so we need to do so artificially.
+		if s[0] > '7' {
+			s[0] %= '7'
+		}
+
 		var err error
 		if _, err = ulid.Parse(string(s[:])); err != nil {
 			t.Error(err)
@@ -366,6 +372,21 @@ func TestCompare(t *testing.T) {
 	err := quick.CheckEqual(a, b, &quick.Config{MaxCount: 1E5})
 	if err != nil {
 		t.Error(err)
+	}
+}
+
+func TestOverflowHandling(t *testing.T) {
+	for s, want := range map[string]error{
+		"00000000000000000000000000": nil,
+		"70000000000000000000000000": nil,
+		"7ZZZZZZZZZZZZZZZZZZZZZZZZZ": nil,
+		"80000000000000000000000000": ulid.ErrOverflow,
+		"80000000000000000000000001": ulid.ErrOverflow,
+		"ZZZZZZZZZZZZZZZZZZZZZZZZZZ": ulid.ErrOverflow,
+	} {
+		if _, have := ulid.Parse(s); want != have {
+			t.Errorf("%s: want error %v, have %v", s, want, have)
+		}
 	}
 }
 
