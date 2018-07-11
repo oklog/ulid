@@ -15,6 +15,7 @@ package ulid
 
 import (
 	"bytes"
+	"database/sql/driver"
 	"errors"
 	"io"
 	"time"
@@ -339,4 +340,22 @@ func (id *ULID) SetEntropy(e []byte) error {
 // The result will be 0 if id==other, -1 if id < other, and +1 if id > other.
 func (id ULID) Compare(other ULID) int {
 	return bytes.Compare(id[:], other[:])
+}
+
+// Scan implements the sql.Scanner interface.
+func (id ULID) Scan(src interface{}) error {
+	switch x := src.(type) {
+	case nil:
+		return nil
+
+	case []byte:
+		return id.UnmarshalBinary(x)
+	}
+
+	return errors.New("ulid: source value must be bytes")
+}
+
+// Value implements the sql/driver.Valuer interface.
+func (id ULID) Value() (driver.Value, error) {
+	return id.MarshalBinary()
 }
