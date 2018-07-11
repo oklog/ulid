@@ -343,7 +343,7 @@ func (id ULID) Compare(other ULID) int {
 }
 
 // Scan implements the sql.Scanner interface.
-func (id ULID) Scan(src interface{}) error {
+func (id *ULID) Scan(src interface{}) error {
 	switch x := src.(type) {
 	case nil:
 		return nil
