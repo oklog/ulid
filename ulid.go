@@ -348,6 +348,9 @@ func (id *ULID) Scan(src interface{}) error {
 	case nil:
 		return nil
 
+	case string:
+		return id.UnmarshalText([]byte(x))
+
 	case []byte:
 		return id.UnmarshalBinary(x)
 	}
