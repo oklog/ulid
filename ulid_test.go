@@ -390,6 +390,32 @@ func TestOverflowHandling(t *testing.T) {
 	}
 }
 
+func TestScanBytes(t *testing.T) {
+	id := ulid.MustNew(123, crand.Reader)
+
+	var id2 ulid.ULID
+	if err := id2.Scan(id[:]); err != nil {
+		t.Error(err)
+	}
+
+	if id.Compare(id2) != 0 {
+		t.Errorf("want %s, have %s", id, id2)
+	}
+}
+
+func TestScanString(t *testing.T) {
+	id := ulid.MustNew(123, crand.Reader)
+
+	var id2 ulid.ULID
+	if err := id2.Scan(id.String()); err != nil {
+		t.Error(err)
+	}
+
+	if id.Compare(id2) != 0 {
+		t.Errorf("want %s, have %s", id, id2)
+	}
+}
+
 func BenchmarkNew(b *testing.B) {
 	b.Run("WithCryptoEntropy", func(b *testing.B) {
 		b.SetBytes(int64(len(ulid.ULID{})))
