@@ -390,29 +390,35 @@ func TestOverflowHandling(t *testing.T) {
 	}
 }
 
-func TestScanBytes(t *testing.T) {
+func TestScan(t *testing.T) {
 	id := ulid.MustNew(123, crand.Reader)
 
-	var id2 ulid.ULID
-	if err := id2.Scan(id[:]); err != nil {
-		t.Error(err)
-	}
+	for _, tc := range []struct {
+		name string
+		in   interface{}
+		out  ulid.ULID
+		err  error
+	}{
+		{"string", id.String(), id, nil},
+		{"bytes", id[:], id, nil},
+		{"nil", nil, ulid.ULID{}, nil},
+		{"other", 44, ulid.ULID{}, ulid.ErrScanValue},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 
-	if id.Compare(id2) != 0 {
-		t.Errorf("want %s, have %s", id, id2)
-	}
-}
+			var out ulid.ULID
+			err := out.Scan(tc.in)
+			if got, want := out, tc.out; got.Compare(want) != 0 {
+				t.Errorf("got ULID %s, want %s", got, want)
+			}
 
-func TestScanString(t *testing.T) {
-	id := ulid.MustNew(123, crand.Reader)
+			if got, want := fmt.Sprint(err), fmt.Sprint(tc.err); got != want {
+				t.Errorf("got err %q, want %q", got, want)
+			}
+		})
 
-	var id2 ulid.ULID
-	if err := id2.Scan(id.String()); err != nil {
-		t.Error(err)
-	}
-
-	if id.Compare(id2) != 0 {
-		t.Errorf("want %s, have %s", id, id2)
 	}
 }
 
