@@ -418,7 +418,6 @@ func TestScan(t *testing.T) {
 				t.Errorf("got err %q, want %q", got, want)
 			}
 		})
-
 	}
 }
 
