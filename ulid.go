@@ -15,6 +15,7 @@ package ulid
 
 import (
 	"bytes"
+	"database/sql/driver"
 	"errors"
 	"io"
 	"time"
@@ -56,6 +57,10 @@ var (
 	// ErrOverflow is returned when unmarshaling a ULID whose first character is
 	// larger than 7, thereby exceeding the valid bit depth of 128.
 	ErrOverflow = errors.New("ulid: overflow when unmarshaling")
+
+	// ErrScanValue is returned when the value passed to scan cannot be unmarshaled
+	// into the ULID.
+	ErrScanValue = errors.New("ulid: source value must be a string or byte slice")
 )
 
 // New returns an ULID with the given Unix milliseconds timestamp and an
@@ -339,4 +344,36 @@ func (id *ULID) SetEntropy(e []byte) error {
 // The result will be 0 if id==other, -1 if id < other, and +1 if id > other.
 func (id ULID) Compare(other ULID) int {
 	return bytes.Compare(id[:], other[:])
+}
+
+// Scan implements the sql.Scanner interface. It supports scanning
+// a string or byte slice.
+func (id *ULID) Scan(src interface{}) error {
+	switch x := src.(type) {
+	case nil:
+		return nil
+	case string:
+		return id.UnmarshalText([]byte(x))
+	case []byte:
+		return id.UnmarshalBinary(x)
+	}
+
+	return ErrScanValue
+}
+
+// Value implements the sql/driver.Valuer interface. This returns the value
+// represented as a byte slice. If instead a string is desirable, a wrapper
+// type can be created that calls String().
+//
+//	// stringValuer wraps a ULID as a string-based driver.Valuer.
+// 	type stringValuer ULID
+//
+//	func (id stringValuer) Value() (driver.Value, error) {
+//		return ULID(id).String(), nil
+//	}
+//
+//	// Example usage.
+//	db.Exec("...", stringValuer(id))
+func (id ULID) Value() (driver.Value, error) {
+	return id.MarshalBinary()
 }
