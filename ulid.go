@@ -363,7 +363,17 @@ func (id *ULID) Scan(src interface{}) error {
 
 // Value implements the sql/driver.Valuer interface. This returns the value
 // represented as a byte slice. If instead a string is desirable, a wrapper
-// type can be created that calls MarshalText.
+// type can be created that calls String().
+//
+//	// stringValuer wraps a ULID as a string-based driver.Valuer.
+// 	type stringValuer ULID
+//
+//	func (id stringValuer) Value() (driver.Value, error) {
+//		return ULID(id).String(), nil
+//	}
+//
+//	// Example usage.
+//	db.Exec("...", stringValuer(id))
 func (id ULID) Value() (driver.Value, error) {
 	return id.MarshalBinary()
 }
