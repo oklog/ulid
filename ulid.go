@@ -57,6 +57,10 @@ var (
 	// ErrOverflow is returned when unmarshaling a ULID whose first character is
 	// larger than 7, thereby exceeding the valid bit depth of 128.
 	ErrOverflow = errors.New("ulid: overflow when unmarshaling")
+
+	// ErrScanValue is returned when the value passed to scan cannot be unmarshaled
+	// into the ULID.
+	ErrScanValue = errors.New("ulid: source value must be a string or byte slice")
 )
 
 // New returns an ULID with the given Unix milliseconds timestamp and an
@@ -342,23 +346,24 @@ func (id ULID) Compare(other ULID) int {
 	return bytes.Compare(id[:], other[:])
 }
 
-// Scan implements the sql.Scanner interface.
+// Scan implements the sql.Scanner interface. It supports scanning
+// a string or byte slice.
 func (id *ULID) Scan(src interface{}) error {
 	switch x := src.(type) {
 	case nil:
 		return nil
-
 	case string:
 		return id.UnmarshalText([]byte(x))
-
 	case []byte:
 		return id.UnmarshalBinary(x)
 	}
 
-	return errors.New("ulid: source value must be bytes")
+	return ErrScanValue
 }
 
-// Value implements the sql/driver.Valuer interface.
+// Value implements the sql/driver.Valuer interface. This returns the value
+// represented as a byte slice. If instead a string is desirable, a wrapper
+// type can be created that calls MarshalText.
 func (id ULID) Value() (driver.Value, error) {
 	return id.MarshalBinary()
 }
