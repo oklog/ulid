@@ -46,6 +46,10 @@ var (
 	// data size.
 	ErrDataSize = errors.New("ulid: bad data size when unmarshaling")
 
+	// ErrInvalidCharacters is returned when parsing or unmarshaling ULIDs with invalid Base32
+	// encodings.
+	ErrInvalidCharacters = errors.New("ulid: bad data characters when unmarshaling")
+
 	// ErrBufferSize is returned when marshalling ULIDs to a buffer of insufficient
 	// size.
 	ErrBufferSize = errors.New("ulid: bad buffer size when marshaling")
@@ -251,6 +255,35 @@ func (id *ULID) UnmarshalText(v []byte) error {
 	// See https://github.com/oklog/ulid/issues/9
 	if v[0] > '7' {
 		return ErrOverflow
+	}
+
+	if dec[v[0]] == 0xFF ||
+		dec[v[1]] == 0xFF ||
+		dec[v[2]] == 0xFF ||
+		dec[v[3]] == 0xFF ||
+		dec[v[4]] == 0xFF ||
+		dec[v[5]] == 0xFF ||
+		dec[v[6]] == 0xFF ||
+		dec[v[7]] == 0xFF ||
+		dec[v[8]] == 0xFF ||
+		dec[v[9]] == 0xFF ||
+		dec[v[10]] == 0xFF ||
+		dec[v[11]] == 0xFF ||
+		dec[v[12]] == 0xFF ||
+		dec[v[13]] == 0xFF ||
+		dec[v[14]] == 0xFF ||
+		dec[v[15]] == 0xFF ||
+		dec[v[16]] == 0xFF ||
+		dec[v[17]] == 0xFF ||
+		dec[v[18]] == 0xFF ||
+		dec[v[19]] == 0xFF ||
+		dec[v[20]] == 0xFF ||
+		dec[v[21]] == 0xFF ||
+		dec[v[22]] == 0xFF ||
+		dec[v[23]] == 0xFF ||
+		dec[v[24]] == 0xFF ||
+		dec[v[25]] == 0xFF {
+		return ErrInvalidCharacters
 	}
 
 	// 6 bytes timestamp (48 bits)
