@@ -76,13 +76,23 @@ func TestMustNew(t *testing.T) {
 func TestMustParse(t *testing.T) {
 	t.Parallel()
 
-	defer func() {
-		if got, want := recover(), ulid.ErrDataSize; got != want {
-			t.Errorf("got panic %v, want %v", got, want)
-		}
-	}()
+	for _, tc := range []struct {
+		name string
+		fn   func(string) ulid.ULID
+	}{
+		{"MustParse", ulid.MustParse},
+		{"MustParseStrict", ulid.MustParseStrict},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			defer func() {
+				if got, want := recover(), ulid.ErrDataSize; got != want {
+					t.Errorf("got panic %v, want %v", got, want)
+				}
+			}()
+			_ = tc.fn("")
+		})
 
-	_ = ulid.MustParse("")
+	}
 }
 
 func testULID(mk func(uint64, io.Reader) ulid.ULID) func(*testing.T) {
@@ -125,7 +135,8 @@ func TestRoundTrips(t *testing.T) {
 		}
 
 		return id == a && b == id &&
-			id == ulid.MustParse(id.String())
+			id == ulid.MustParse(id.String()) &&
+			id == ulid.MustParseStrict(id.String())
 	}
 
 	err := quick.Check(prop, &quick.Config{MaxCount: 1E5})
@@ -154,6 +165,36 @@ func TestMarshalingErrors(t *testing.T) {
 			}
 		})
 
+	}
+}
+
+func TestParseStrictInvalidCharacters(t *testing.T) {
+	t.Parallel()
+
+	type testCase struct {
+		name  string
+		input string
+	}
+	testCases := []testCase{}
+	base := "0000XSNJG0MQJHBF4QX1EFD6Y3"
+	for i := 0; i < ulid.EncodedSize; i++ {
+		testCases = append(testCases, testCase{
+			name:  fmt.Sprintf("Invalid 0xFF at index %d", i),
+			input: base[:i] + "\xff" + base[i+1:],
+		})
+		testCases = append(testCases, testCase{
+			name:  fmt.Sprintf("Invalid 0x00 at index %d", i),
+			input: base[:i] + "\x00" + base[i+1:],
+		})
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ulid.ParseStrict(tt.input)
+			if err != ulid.ErrInvalidCharacters {
+				t.Errorf("Parse(%q): got err %v, want %v", tt.input, err, ulid.ErrInvalidCharacters)
+			}
+		})
 	}
 }
 
@@ -484,6 +525,14 @@ func BenchmarkParse(b *testing.B) {
 	b.SetBytes(int64(len(s)))
 	for i := 0; i < b.N; i++ {
 		_, _ = ulid.Parse(s)
+	}
+}
+
+func BenchmarkParseStrict(b *testing.B) {
+	const s = "0000XSNJG0MQJHBF4QX1EFD6Y3"
+	b.SetBytes(int64(len(s)))
+	for i := 0; i < b.N; i++ {
+		_, _ = ulid.ParseStrict(s)
 	}
 }
 
