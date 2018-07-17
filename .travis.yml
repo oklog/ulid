@@ -13,4 +13,4 @@ script:
   - $HOME/gopath/bin/golint .
   - go test -v -race ./...
   - go test -v -covermode=count -coverprofile=cov.out
-  - $HOME/gopath/bin/goveralls -coverprofile=cov.out -service=travis-ci -repotoken $COVERALLS_TOKEN
+  - $HOME/gopath/bin/goveralls -coverprofile=cov.out -service=travis-ci -repotoken "$COVERALLS_TOKEN" || true
