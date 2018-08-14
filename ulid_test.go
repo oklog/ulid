@@ -21,6 +21,7 @@ import (
 	"math/rand"
 	"strings"
 	"testing"
+	"testing/iotest"
 	"testing/quick"
 	"time"
 
@@ -395,6 +396,31 @@ func TestEntropy(t *testing.T) {
 	}
 
 	if err := quick.Check(prop, nil); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestEntropyRead(t *testing.T) {
+	t.Parallel()
+
+	prop := func(e [10]byte) bool {
+		flakyReader := iotest.HalfReader(bytes.NewReader(e[:]))
+
+		id, err := ulid.New(ulid.Now(), flakyReader)
+		if err != nil {
+			t.Fatalf("got err %v", err)
+		}
+
+		got, want := id.Entropy(), e[:]
+		eq := bytes.Equal(got, want)
+		if !eq {
+			t.Errorf("\n(!= %v\n    %v)", got, want)
+		}
+
+		return eq
+	}
+
+	if err := quick.Check(prop, &quick.Config{MaxCount: 50}); err != nil {
 		t.Fatal(err)
 	}
 }
