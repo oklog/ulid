@@ -1,3 +1,7 @@
+## 1.1.0 / 2018-08-15
+
+* Ensure random part is always read from the entropy reader in full (#28)
+
 ## 1.0.0 / 2018-07-29
 
 * Add ParseStrict and MustParseStrict functions (#26)
