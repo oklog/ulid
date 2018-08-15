@@ -79,7 +79,7 @@ func New(ms uint64, entropy io.Reader) (id ULID, err error) {
 	}
 
 	if entropy != nil {
-		_, err = entropy.Read(id[6:])
+		_, err = io.ReadFull(entropy, id[6:])
 	}
 
 	return id, err
