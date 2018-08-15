@@ -420,7 +420,7 @@ func TestEntropyRead(t *testing.T) {
 		return eq
 	}
 
-	if err := quick.Check(prop, &quick.Config{MaxCount: 50}); err != nil {
+	if err := quick.Check(prop, &quick.Config{MaxCount: 1E4}); err != nil {
 		t.Fatal(err)
 	}
 }
