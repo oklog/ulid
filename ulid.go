@@ -67,14 +67,41 @@ var (
 	ErrScanValue = errors.New("ulid: source value must be a string or byte slice")
 )
 
-// New returns an ULID with the given Unix milliseconds timestamp and an
+// NewFromTime returns an ULID with the given time and an
+// optional entropy source.
+//
+// ErrBigTime is returned when passing a timestamp bigger than MaxTime.
+// Reading from the entropy source may also return an error.
+func NewFromTime(t time.Time, entropy io.Reader) (id ULID, err error) {
+	if err = id.SetTime(t); err != nil {
+		return id, err
+	}
+
+	if entropy != nil {
+		_, err = entropy.Read(id[6:])
+	}
+
+	return id, err
+}
+
+// MustNewFromTime is a convenience function equivalent to NewFromTime that panics on failure
+// instead of returning an error.
+func MustNewFromTime(t time.Time, entropy io.Reader) ULID {
+	id, err := NewFromTime(t, entropy)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+// NewFromUnixMillis returns an ULID with the given Unix milliseconds timestamp and an
 // optional entropy source. Use the Timestamp function to convert
 // a time.Time to Unix milliseconds.
 //
 // ErrBigTime is returned when passing a timestamp bigger than MaxTime.
 // Reading from the entropy source may also return an error.
-func New(ms uint64, entropy io.Reader) (id ULID, err error) {
-	if err = id.SetTime(ms); err != nil {
+func NewFromUnixMillis(ms uint64, entropy io.Reader) (id ULID, err error) {
+	if err = id.SetUnixMillis(ms); err != nil {
 		return id, err
 	}
 
@@ -85,10 +112,10 @@ func New(ms uint64, entropy io.Reader) (id ULID, err error) {
 	return id, err
 }
 
-// MustNew is a convenience function equivalent to New that panics on failure
+// MustNewFromUnixMillis is a convenience function equivalent to NewFromUnixMillis that panics on failure
 // instead of returning an error.
-func MustNew(ms uint64, entropy io.Reader) ULID {
-	id, err := New(ms, entropy)
+func MustNewFromUnixMillis(ms uint64, entropy io.Reader) ULID {
+	id, err := NewFromUnixMillis(ms, entropy)
 	if err != nil {
 		panic(err)
 	}
@@ -343,8 +370,14 @@ func (id *ULID) UnmarshalText(v []byte) error {
 	return parse(v, false, id)
 }
 
-// Time returns the Unix time in milliseconds encoded in the ULID.
-func (id ULID) Time() uint64 {
+// Time returns the time encoded in the ULID as time.TIme.
+func (id ULID) Time() time.Time {
+	unixMillis := id.UnixMillis()
+	return time.Unix(int64(unixMillis/1000), int64((unixMillis%1000)*1E6))
+}
+
+// UnixMillis returns the Unix time in milliseconds encoded in the ULID.
+func (id ULID) UnixMillis() uint64 {
 	return uint64(id[5]) | uint64(id[4])<<8 |
 		uint64(id[3])<<16 | uint64(id[2])<<24 |
 		uint64(id[1])<<32 | uint64(id[0])<<40
@@ -352,11 +385,11 @@ func (id ULID) Time() uint64 {
 
 // maxTime is the maximum Unix time in milliseconds that can be
 // represented in an ULID.
-var maxTime = ULID{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}.Time()
+var maxTime = ULID{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}.UnixMillis()
 
 // MaxTime returns the maximum Unix time in milliseconds that
 // can be encoded in an ULID.
-func MaxTime() uint64 { return maxTime }
+func MaxUnixMillis() uint64 { return maxTime }
 
 // Now is a convenience function that returns the current
 // UTC time in Unix milliseconds. Equivalent to:
@@ -372,9 +405,14 @@ func Timestamp(t time.Time) uint64 {
 		uint64(t.Nanosecond()/int(time.Millisecond))
 }
 
-// SetTime sets the time component of the ULID to the given Unix time
+// SetTime sets the time component of the ULID to the the given time.
+func (id *ULID) SetTime(t time.Time) error {
+	return id.SetUnixMillis(Timestamp(t.UTC()))
+}
+
+// SetUnixMillis sets the time component of the ULID to the given Unix time
 // in milliseconds.
-func (id *ULID) SetTime(ms uint64) error {
+func (id *ULID) SetUnixMillis(ms uint64) error {
 	if ms > maxTime {
 		return ErrBigTime
 	}

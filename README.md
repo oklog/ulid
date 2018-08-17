@@ -46,7 +46,7 @@ Instantiate one per long living go-routine or use a `sync.Pool` if you want to a
 func ExampleULID() {
 	t := time.Unix(1000000, 0)
 	entropy := rand.New(rand.NewSource(t.UnixNano()))
-	fmt.Println(ulid.MustNew(ulid.Timestamp(t), entropy))
+	fmt.Println(ulid.MustNewFromTime(t, entropy))
 	// Output: 0000XSNJG0MQJHBF4QX1EFD6Y3
 }
 
