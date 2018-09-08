@@ -347,6 +347,20 @@ func TestTimestamp(t *testing.T) {
 	}
 }
 
+func TestTimestampToTime(t *testing.T) {
+	t.Parallel()
+
+	original := time.Now()
+	timestamp := ulid.Timestamp(original)
+	recovered := ulid.TimestampToTime(timestamp)
+	diff := original.Sub(recovered)
+	if diff >= time.Millisecond {
+		t.Errorf("difference between original and recovered time (%d) greater"+
+			"than a millisecond", diff)
+	}
+
+}
+
 func TestTime(t *testing.T) {
 	t.Parallel()
 
