@@ -361,6 +361,22 @@ func TestTimeFunction(t *testing.T) {
 
 }
 
+func TestTimestampRoundTrips(t *testing.T) {
+	t.Parallel()
+
+	prop := func(timestamp uint64) bool {
+		tm := ulid.Time(timestamp)
+		recovered := ulid.Timestamp(tm)
+
+		return recovered == timestamp
+	}
+
+	err := quick.Check(prop, &quick.Config{MaxCount: 1E5})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestTime(t *testing.T) {
 	t.Parallel()
 
