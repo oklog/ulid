@@ -1,3 +1,7 @@
+## 1.2.0 / 2018-09-09
+
+* Add a function to convert Unix time in milliseconds back to time.Time (#30)
+
 ## 1.1.0 / 2018-08-15
 
 * Ensure random part is always read from the entropy reader in full (#28)
