@@ -347,7 +347,7 @@ func TestTimestamp(t *testing.T) {
 	}
 }
 
-func TestTimeFunction(t *testing.T) {
+func TestTime(t *testing.T) {
 	t.Parallel()
 
 	original := time.Now()
@@ -377,7 +377,7 @@ func TestTimestampRoundTrips(t *testing.T) {
 	}
 }
 
-func TestTime(t *testing.T) {
+func TestULIDTime(t *testing.T) {
 	t.Parallel()
 
 	maxTime := ulid.MaxTime()
