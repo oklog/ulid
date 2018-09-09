@@ -350,6 +350,31 @@ func TestTimestamp(t *testing.T) {
 func TestTime(t *testing.T) {
 	t.Parallel()
 
+	original := time.Now()
+	diff := original.Sub(ulid.Time(ulid.Timestamp(original)))
+	if diff >= time.Millisecond {
+		t.Errorf("difference between original and recovered time (%d) greater"+
+			"than a millisecond", diff)
+	}
+
+}
+
+func TestTimestampRoundTrips(t *testing.T) {
+	t.Parallel()
+
+	prop := func(ts uint64) bool {
+		return ts == ulid.Timestamp(ulid.Time(ts))
+	}
+
+	err := quick.Check(prop, &quick.Config{MaxCount: 1E5})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestULIDTime(t *testing.T) {
+	t.Parallel()
+
 	maxTime := ulid.MaxTime()
 
 	var id ulid.ULID

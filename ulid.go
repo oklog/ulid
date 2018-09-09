@@ -344,6 +344,8 @@ func (id *ULID) UnmarshalText(v []byte) error {
 }
 
 // Time returns the Unix time in milliseconds encoded in the ULID.
+// Use the top level Time function to convert the returned value to
+// a time.Time.
 func (id ULID) Time() uint64 {
 	return uint64(id[5]) | uint64(id[4])<<8 |
 		uint64(id[3])<<16 | uint64(id[2])<<24 |
@@ -370,6 +372,14 @@ func Now() uint64 { return Timestamp(time.Now().UTC()) }
 func Timestamp(t time.Time) uint64 {
 	return uint64(t.Unix())*1000 +
 		uint64(t.Nanosecond()/int(time.Millisecond))
+}
+
+// Time converts Unix milliseconds in the format
+// returned by the Timestamp function to a time.Time.
+func Time(ms uint64) time.Time {
+	s := int64(ms / 1e3)
+	ns := int64((ms % 1e3) * 1e6)
+	return time.Unix(s, ns)
 }
 
 // SetTime sets the time component of the ULID to the given Unix time
