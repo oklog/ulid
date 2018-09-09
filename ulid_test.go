@@ -351,9 +351,7 @@ func TestTime(t *testing.T) {
 	t.Parallel()
 
 	original := time.Now()
-	timestamp := ulid.Timestamp(original)
-	recovered := ulid.Time(timestamp)
-	diff := original.Sub(recovered)
+	diff := original.Sub(ulid.Time(ulid.Timestamp(original)))
 	if diff >= time.Millisecond {
 		t.Errorf("difference between original and recovered time (%d) greater"+
 			"than a millisecond", diff)
@@ -364,11 +362,8 @@ func TestTime(t *testing.T) {
 func TestTimestampRoundTrips(t *testing.T) {
 	t.Parallel()
 
-	prop := func(timestamp uint64) bool {
-		tm := ulid.Time(timestamp)
-		recovered := ulid.Timestamp(tm)
-
-		return recovered == timestamp
+	prop := func(ts uint64) bool {
+		return ts == ulid.Timestamp(ulid.Time(ts))
 	}
 
 	err := quick.Check(prop, &quick.Config{MaxCount: 1E5})
