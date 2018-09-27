@@ -471,28 +471,28 @@ func Monotonic(entropy io.Reader) io.Reader {
 
 type monotonic struct {
 	io.Reader
-	ms   uint64
-	prev []byte
+	ms      uint64
+	entropy []byte
 }
 
 func (m *monotonic) MonotonicRead(ms uint64, entropy []byte) (err error) {
-	if len(m.prev) != 0 && m.ms == ms {
+	if len(m.entropy) != 0 && m.ms == ms {
 		err = m.increment()
-		copy(entropy, m.prev)
+		copy(entropy, m.entropy)
 	} else if _, err = io.ReadFull(m, entropy); err == nil {
 		m.ms = ms
-		m.prev = append(m.prev[:0], entropy...)
+		m.entropy = append(m.entropy[:0], entropy...)
 	}
 	return err
 }
 
 func (m *monotonic) increment() error {
-	for i := len(m.prev) - 1; i >= 0; i-- {
-		switch m.prev[i] {
+	for i := len(m.entropy) - 1; i >= 0; i-- {
+		switch m.entropy[i] {
 		case 255:
-			m.prev[i] = 0
+			m.entropy[i] = 0
 		default:
-			m.prev[i]++
+			m.entropy[i]++
 			return nil
 		}
 	}
