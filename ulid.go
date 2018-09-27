@@ -84,13 +84,7 @@ func New(ms uint64, entropy io.Reader) (id ULID, err error) {
 
 	switch e := entropy.(type) {
 	case *monotonic:
-		if len(e.prev) != 0 && e.ms == ms {
-			err = increment(e.prev)
-			id.SetEntropy(e.prev)
-		} else if _, err = io.ReadFull(e, id[6:]); err == nil {
-			e.ms = ms
-			e.prev = append(e.prev[:0], id[6:]...)
-		}
+		err = e.MonotonicRead(ms, id[6:])
 	default:
 		_, err = io.ReadFull(e, id[6:])
 	}
@@ -479,6 +473,17 @@ type monotonic struct {
 	io.Reader
 	ms   uint64
 	prev []byte
+}
+
+func (m *monotonic) MonotonicRead(ms uint64, entropy []byte) (err error) {
+	if len(m.prev) != 0 && m.ms == ms {
+		err = increment(m.prev)
+		copy(entropy, m.prev)
+	} else if _, err = io.ReadFull(m, entropy); err == nil {
+		m.ms = ms
+		m.prev = append(m.prev[:0], entropy...)
+	}
+	return err
 }
 
 func increment(bs []byte) error {
