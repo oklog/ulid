@@ -477,7 +477,7 @@ type monotonic struct {
 
 func (m *monotonic) MonotonicRead(ms uint64, entropy []byte) (err error) {
 	if len(m.prev) != 0 && m.ms == ms {
-		err = increment(m.prev)
+		err = m.increment()
 		copy(entropy, m.prev)
 	} else if _, err = io.ReadFull(m, entropy); err == nil {
 		m.ms = ms
@@ -486,13 +486,13 @@ func (m *monotonic) MonotonicRead(ms uint64, entropy []byte) (err error) {
 	return err
 }
 
-func increment(bs []byte) error {
-	for i := len(bs) - 1; i >= 0; i-- {
-		switch bs[i] {
+func (m *monotonic) increment() error {
+	for i := len(m.prev) - 1; i >= 0; i-- {
+		switch m.prev[i] {
 		case 255:
-			bs[i] = 0
+			m.prev[i] = 0
 		default:
-			bs[i]++
+			m.prev[i]++
 			return nil
 		}
 	}
