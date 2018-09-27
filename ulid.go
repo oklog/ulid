@@ -62,8 +62,8 @@ var (
 	// larger than 7, thereby exceeding the valid bit depth of 128.
 	ErrOverflow = errors.New("ulid: overflow when unmarshaling")
 
-	// ErrMonotonicOverflow is returned by a MonotonicEntropy when incrementing
-	// the previous ULID's entropy bytes would result in overflow.
+	// ErrMonotonicOverflow is returned by a Monotonic entropy source when
+	// incrementing the previous ULID's entropy bytes would result in overflow.
 	ErrMonotonicOverflow = errors.New("ulid: monotonic entropy overflow")
 
 	// ErrScanValue is returned when the value passed to scan cannot be unmarshaled
