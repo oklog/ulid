@@ -62,6 +62,10 @@ var (
 	// larger than 7, thereby exceeding the valid bit depth of 128.
 	ErrOverflow = errors.New("ulid: overflow when unmarshaling")
 
+	// ErrMonotonicOverflow is returned by a MonotonicEntropy when incrementing
+	// the previous ULID's entropy bytes would result in overflow.
+	ErrMonotonicOverflow = errors.New("ulid: monotonic entropy overflow")
+
 	// ErrScanValue is returned when the value passed to scan cannot be unmarshaled
 	// into the ULID.
 	ErrScanValue = errors.New("ulid: source value must be a string or byte slice")
@@ -78,8 +82,21 @@ func New(ms uint64, entropy io.Reader) (id ULID, err error) {
 		return id, err
 	}
 
-	if entropy != nil {
-		_, err = io.ReadFull(entropy, id[6:])
+	if entropy == nil {
+		return id, nil
+	}
+
+	switch e := entropy.(type) {
+	case *monotonic:
+		if len(e.prev) != 0 && e.ms == ms {
+			err = increment(e.prev)
+			id.SetEntropy(e.prev)
+		} else if _, err = io.ReadFull(e, id[6:]); err == nil {
+			e.ms = ms
+			e.prev = append(e.prev[:0], id[6:]...)
+		}
+	default:
+		_, err = io.ReadFull(e, id[6:])
 	}
 
 	return id, err
@@ -453,4 +470,30 @@ func (id *ULID) Scan(src interface{}) error {
 //	db.Exec("...", stringValuer(id))
 func (id ULID) Value() (driver.Value, error) {
 	return id.MarshalBinary()
+}
+
+// Monotonic returns an entropy source that is guaranteed to return
+// strictly increasing entropy bytes for the same ULID timestamp.
+// Not safe for concurrent use.
+func Monotonic(entropy io.Reader) io.Reader {
+	return &monotonic{Reader: entropy}
+}
+
+type monotonic struct {
+	io.Reader
+	ms   uint64
+	prev []byte
+}
+
+func increment(bs []byte) error {
+	for i := len(bs) - 1; i >= 0; i-- {
+		switch bs[i] {
+		case 255:
+			bs[i] = 0
+		default:
+			bs[i]++
+			return nil
+		}
+	}
+	return ErrMonotonicOverflow
 }

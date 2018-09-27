@@ -513,6 +513,42 @@ func TestScan(t *testing.T) {
 	}
 }
 
+func TestMonotonic(t *testing.T) {
+	for ms := 0; ms < 100; ms++ {
+		r := rand.New(rand.NewSource(int64(ms)))
+		entropy := ulid.Monotonic(r)
+
+		var prev ulid.ULID
+		for i := 0; i < 100000; i++ {
+			next, err := ulid.New(uint64(ms), entropy)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if prev.Compare(next) > 0 {
+				t.Fatalf("prev: %v %v > next: %v %v",
+					prev.Time(), prev.Entropy(), next.Time(), next.Entropy())
+			}
+
+			prev = next
+		}
+	}
+
+	// Test ErrMonotonicOverflow
+
+	entropy := ulid.Monotonic(bytes.NewReader(bytes.Repeat([]byte{0xFF}, 10)))
+	prev, err := ulid.New(0, entropy)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	next, err := ulid.New(prev.Time(), entropy)
+	if have, want := err, ulid.ErrMonotonicOverflow; have != want {
+		t.Errorf("have ulid: %v %v err: %v, want err: %v",
+			next.Time(), next.Entropy(), have, want)
+	}
+}
+
 func BenchmarkNew(b *testing.B) {
 	b.Run("WithCryptoEntropy", func(b *testing.B) {
 		b.SetBytes(int64(len(ulid.ULID{})))
@@ -525,6 +561,17 @@ func BenchmarkNew(b *testing.B) {
 	b.Run("WithEntropy", func(b *testing.B) {
 		now := time.Now().UTC()
 		entropy := rand.New(rand.NewSource(now.UnixNano()))
+
+		b.SetBytes(int64(len(ulid.ULID{})))
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, _ = ulid.New(123, entropy)
+		}
+	})
+
+	b.Run("WithMonotonicEntropy", func(b *testing.B) {
+		now := time.Now().UTC()
+		entropy := ulid.Monotonic(rand.New(rand.NewSource(now.UnixNano())))
 
 		b.SetBytes(int64(len(ulid.ULID{})))
 		b.ResetTimer()
@@ -554,6 +601,17 @@ func BenchmarkMustNew(b *testing.B) {
 	b.Run("WithEntropy", func(b *testing.B) {
 		now := time.Now().UTC()
 		entropy := rand.New(rand.NewSource(now.UnixNano()))
+
+		b.SetBytes(int64(len(ulid.ULID{})))
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = ulid.MustNew(123, entropy)
+		}
+	})
+
+	b.Run("WithMonotonicEntropy", func(b *testing.B) {
+		now := time.Now().UTC()
+		entropy := ulid.Monotonic(rand.New(rand.NewSource(now.UnixNano())))
 
 		b.SetBytes(int64(len(ulid.ULID{})))
 		b.ResetTimer()
