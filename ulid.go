@@ -78,12 +78,8 @@ var (
 // ErrBigTime is returned when passing a timestamp bigger than MaxTime.
 // Reading from the entropy source may also return an error.
 func New(ms uint64, entropy io.Reader) (id ULID, err error) {
-	if err = id.SetTime(ms); err != nil {
+	if err = id.SetTime(ms); err != nil || entropy == nil {
 		return id, err
-	}
-
-	if entropy == nil {
-		return id, nil
 	}
 
 	switch e := entropy.(type) {
