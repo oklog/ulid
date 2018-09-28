@@ -521,11 +521,16 @@ var (
 // of up to m.inc, except when it would exceed maxEntropy.
 func (m *monotonic) increment() (err error) {
 	switch {
+	case m.inc == one: // Fast path
+		for i := len(m.entropy) - 1; i >= 0; i-- {
+			// When wrapping around, we get a zero thus proceeding to the next byte.
+			if m.entropy[i]++; m.entropy[i] != 0 {
+				return nil
+			}
+		}
+		fallthrough
 	case bytes.Compare(m.entropy, maxEntropyBytes) == 0:
 		return ErrMonotonicOverflow
-	case m.inc == one: // Fast path
-		m.entropy[len(m.entropy)-1]++
-		return nil
 	}
 
 	// lo := m.entropy

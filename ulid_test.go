@@ -514,25 +514,30 @@ func TestScan(t *testing.T) {
 }
 
 func TestMonotonic(t *testing.T) {
-	t.Parallel()
-
 	for ms := 0; ms < 100; ms++ {
-		r := rand.New(rand.NewSource(int64(ms)))
-		entropy := ulid.Monotonic(r, 0)
+		for inc := 0; inc <= 1; inc++ {
+			t.Run(fmt.Sprintf("ms=%d inc=%d", ms, inc), func(t *testing.T) {
+				t.Parallel()
 
-		var prev ulid.ULID
-		for i := 0; i < 100000; i++ {
-			next, err := ulid.New(uint64(ms), entropy)
-			if err != nil {
-				t.Fatal(err)
-			}
+				r := rand.New(rand.NewSource(int64(ms)))
+				entropy := ulid.Monotonic(r, uint64(inc))
 
-			if prev.Compare(next) > 0 {
-				t.Fatalf("prev: %v %v > next: %v %v",
-					prev.Time(), prev.Entropy(), next.Time(), next.Entropy())
-			}
+				var prev ulid.ULID
+				for i := 0; i < 100000; i++ {
+					next, err := ulid.New(uint64(ms), entropy)
+					if err != nil {
+						t.Fatal(err)
+					}
 
-			prev = next
+					if prev.Compare(next) > 0 {
+						t.Fatalf("prev: %v %v > next: %v %v",
+							prev.Time(), prev.Entropy(), next.Time(), next.Entropy())
+					}
+
+					prev = next
+				}
+
+			})
 		}
 	}
 
