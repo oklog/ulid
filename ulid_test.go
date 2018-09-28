@@ -571,7 +571,7 @@ func BenchmarkNew(b *testing.B) {
 		}
 	})
 
-	b.Run("WithMonotonicEntropy", func(b *testing.B) {
+	b.Run("WithMonotonicEntropy_SameTimestamp", func(b *testing.B) {
 		now := time.Now().UTC()
 		entropy := ulid.Monotonic(rand.New(rand.NewSource(now.UnixNano())))
 
@@ -579,6 +579,17 @@ func BenchmarkNew(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_, _ = ulid.New(123, entropy)
+		}
+	})
+
+	b.Run("WithMonotonicEntropy_DifferentTimestamp", func(b *testing.B) {
+		now := time.Now().UTC()
+		entropy := ulid.Monotonic(rand.New(rand.NewSource(now.UnixNano())))
+
+		b.SetBytes(int64(len(ulid.ULID{})))
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, _ = ulid.New(uint64(i), entropy)
 		}
 	})
 
@@ -611,7 +622,7 @@ func BenchmarkMustNew(b *testing.B) {
 		}
 	})
 
-	b.Run("WithMonotonicEntropy", func(b *testing.B) {
+	b.Run("WithMonotonicEntropy_SameTimestamp", func(b *testing.B) {
 		now := time.Now().UTC()
 		entropy := ulid.Monotonic(rand.New(rand.NewSource(now.UnixNano())))
 
@@ -619,6 +630,17 @@ func BenchmarkMustNew(b *testing.B) {
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_ = ulid.MustNew(123, entropy)
+		}
+	})
+
+	b.Run("WithMonotonicEntropy_DifferentTimestamp", func(b *testing.B) {
+		now := time.Now().UTC()
+		entropy := ulid.Monotonic(rand.New(rand.NewSource(now.UnixNano())))
+
+		b.SetBytes(int64(len(ulid.ULID{})))
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = ulid.MustNew(uint64(i), entropy)
 		}
 	})
 
