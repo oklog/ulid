@@ -481,7 +481,7 @@ func (m *monotonic) MonotonicRead(ms uint64, entropy []byte) (err error) {
 	if len(m.entropy) != 0 && m.ms == ms {
 		err = m.increment()
 		copy(entropy, m.entropy)
-	} else if _, err = io.ReadFull(m, entropy); err == nil {
+	} else if _, err = io.ReadFull(m.Reader, entropy); err == nil {
 		m.ms = ms
 		m.entropy = append(m.entropy[:0], entropy...)
 	}
