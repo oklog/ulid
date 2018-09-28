@@ -14,10 +14,14 @@
 package ulid
 
 import (
+	"bufio"
 	"bytes"
+	crand "crypto/rand"
 	"database/sql/driver"
 	"errors"
 	"io"
+	"math"
+	"math/big"
 	"time"
 )
 
@@ -468,35 +472,64 @@ func (id ULID) Value() (driver.Value, error) {
 // strictly increasing entropy bytes for the same ULID timestamp.
 // Not safe for concurrent use.
 func Monotonic(entropy io.Reader) io.Reader {
-	return &monotonic{Reader: entropy}
+	return &monotonic{Reader: bufio.NewReader(entropy)}
 }
 
 type monotonic struct {
 	io.Reader
-	ms      uint64
-	entropy []byte
+	ms              uint64
+	entropy, hi, lo big.Int
 }
 
 func (m *monotonic) MonotonicRead(ms uint64, entropy []byte) (err error) {
-	if len(m.entropy) != 0 && m.ms == ms {
+	if m.entropy.BitLen() != 0 && m.ms == ms {
 		err = m.increment()
-		copy(entropy, m.entropy)
+		copy(entropy, m.entropy.Bytes())
 	} else if _, err = io.ReadFull(m.Reader, entropy); err == nil {
 		m.ms = ms
-		m.entropy = append(m.entropy[:0], entropy...)
+		m.entropy.SetBytes(entropy)
 	}
 	return err
 }
 
-func (m *monotonic) increment() error {
-	for i := len(m.entropy) - 1; i >= 0; i-- {
-		switch m.entropy[i] {
-		case 255:
-			m.entropy[i] = 0
-		default:
-			m.entropy[i]++
-			return nil
-		}
+var (
+	one          = big.NewInt(1)
+	maxIncrement = big.NewInt(math.MaxUint32)
+	maxEntropy   = func() *big.Int {
+		var n big.Int
+		n.SetBytes(bytes.Repeat([]byte{255}, 10))
+		return &n
+	}()
+)
+
+// increment the previous entropy number with a random number
+// of up to math.MaxUint32, except when it would exceed maxEntropy.
+func (m *monotonic) increment() (err error) {
+	if m.entropy.Cmp(maxEntropy) == 0 {
+		return ErrMonotonicOverflow
 	}
-	return ErrMonotonicOverflow
+
+	// lo := m.entropy
+	// inc := rand.Intn(hi-lo+1)
+	// m.entropy := 1 + lo + inc
+
+	m.lo.Set(&m.entropy)
+
+	if m.hi.Add(&m.lo, maxIncrement).Cmp(maxEntropy) > 0 {
+		// Increment would overflow maxEntropy, so we cap it.
+		m.hi.Set(maxEntropy)
+	}
+
+	m.hi.Sub(&m.hi, &m.lo)
+	m.hi.Add(&m.hi, one)
+
+	inc, err := crand.Int(m.Reader, &m.hi)
+	if err != nil {
+		return err
+	}
+
+	m.entropy.Add(&m.lo, one)
+	m.entropy.Add(&m.entropy, inc)
+
+	return nil
 }

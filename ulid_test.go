@@ -514,6 +514,8 @@ func TestScan(t *testing.T) {
 }
 
 func TestMonotonic(t *testing.T) {
+	t.Parallel()
+
 	for ms := 0; ms < 100; ms++ {
 		r := rand.New(rand.NewSource(int64(ms)))
 		entropy := ulid.Monotonic(r)
