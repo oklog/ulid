@@ -470,52 +470,71 @@ func (id ULID) Value() (driver.Value, error) {
 
 // Monotonic returns an entropy source that is guaranteed to return
 // strictly increasing entropy bytes for the same ULID timestamp.
+// On conflicts, the previous ULID entropy is incremented with a
+// random number between 1 and `inc`.
+//
+// When `inc` == 0, it'll be set to math.MaxUint32.
+// When `inc` == 1, there's no randomness in the increment and so there's
+// a faster, optimized code path.
+//
 // Not safe for concurrent use.
-func Monotonic(entropy io.Reader) io.Reader {
-	return &monotonic{Reader: bufio.NewReader(entropy)}
+func Monotonic(entropy io.Reader, inc uint64) io.Reader {
+	m := monotonic{Reader: bufio.NewReader(entropy)}
+	switch inc {
+	case 1:
+		m.inc = one // Used for fast path pointer comparison in increment
+	case 0:
+		inc = math.MaxUint32
+		fallthrough
+	default:
+		m.inc = new(big.Int).SetUint64(inc)
+	}
+	return &m
 }
 
 type monotonic struct {
 	io.Reader
-	ms              uint64
-	entropy, hi, lo big.Int
+	ms      uint64
+	inc     *big.Int
+	hi, lo  big.Int
+	entropy []byte
 }
 
 func (m *monotonic) MonotonicRead(ms uint64, entropy []byte) (err error) {
-	if m.entropy.BitLen() != 0 && m.ms == ms {
+	if len(m.entropy) != 0 && m.ms == ms {
 		err = m.increment()
-		copy(entropy, m.entropy.Bytes())
+		copy(entropy, m.entropy)
 	} else if _, err = io.ReadFull(m.Reader, entropy); err == nil {
 		m.ms = ms
-		m.entropy.SetBytes(entropy)
+		m.entropy = append(m.entropy[:0], entropy...)
 	}
 	return err
 }
 
 var (
-	one          = big.NewInt(1)
-	maxIncrement = big.NewInt(math.MaxUint32)
-	maxEntropy   = func() *big.Int {
-		var n big.Int
-		n.SetBytes(bytes.Repeat([]byte{255}, 10))
-		return &n
-	}()
+	one             = big.NewInt(1)
+	maxEntropyBytes = bytes.Repeat([]byte{255}, 10)
+	maxEntropy      = new(big.Int).SetBytes(maxEntropyBytes)
 )
 
 // increment the previous entropy number with a random number
-// of up to math.MaxUint32, except when it would exceed maxEntropy.
+// of up to m.inc, except when it would exceed maxEntropy.
 func (m *monotonic) increment() (err error) {
-	if m.entropy.Cmp(maxEntropy) == 0 {
+	switch {
+	case bytes.Compare(m.entropy, maxEntropyBytes) == 0:
 		return ErrMonotonicOverflow
+	case m.inc == one: // Fast path
+		m.entropy[len(m.entropy)-1]++
+		return nil
 	}
 
 	// lo := m.entropy
 	// inc := rand.Intn(hi-lo+1)
 	// m.entropy := 1 + lo + inc
 
-	m.lo.Set(&m.entropy)
+	m.lo.SetBytes(m.entropy)
 
-	if m.hi.Add(&m.lo, maxIncrement).Cmp(maxEntropy) > 0 {
+	if m.hi.Add(&m.lo, m.inc).Cmp(maxEntropy) > 0 {
 		// Increment would overflow maxEntropy, so we cap it.
 		m.hi.Set(maxEntropy)
 	}
@@ -528,8 +547,10 @@ func (m *monotonic) increment() (err error) {
 		return err
 	}
 
-	m.entropy.Add(&m.lo, one)
-	m.entropy.Add(&m.entropy, inc)
+	m.lo.Add(&m.lo, one)
+	m.lo.Add(&m.lo, inc)
+
+	copy(m.entropy, m.lo.Bytes())
 
 	return nil
 }
