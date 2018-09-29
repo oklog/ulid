@@ -16,12 +16,12 @@ package ulid
 import (
 	"bufio"
 	"bytes"
-	crand "crypto/rand"
 	"database/sql/driver"
+	"encoding/binary"
 	"errors"
 	"io"
 	"math"
-	"math/big"
+	"math/rand"
 	"time"
 )
 
@@ -473,89 +473,79 @@ func (id ULID) Value() (driver.Value, error) {
 // On conflicts, the previous ULID entropy is incremented with a
 // random number between 1 and `inc`.
 //
-// When `inc` == 0, it'll be set to math.MaxUint32.
-// When `inc` == 1, there's no randomness in the increment and so there's
-// a faster, optimized code path.
+// When `inc` == 0, it'll be set to math.MaxUint32 which is a secure
+// default.
 //
 // Not safe for concurrent use.
 func Monotonic(entropy io.Reader, inc uint64) io.Reader {
-	m := monotonic{Reader: bufio.NewReader(entropy)}
-	switch inc {
-	case 1:
-		m.inc = one // Used for fast path pointer comparison in increment
-	case 0:
+	if inc == 0 {
 		inc = math.MaxUint32
-		fallthrough
-	default:
-		m.inc = new(big.Int).SetUint64(inc)
 	}
-	return &m
+
+	return &monotonic{
+		Reader: bufio.NewReader(entropy),
+		rng:    rand.New(rand.NewSource(time.Now().UnixNano())),
+		inc:    inc,
+	}
 }
 
 type monotonic struct {
 	io.Reader
+	rng     *rand.Rand
 	ms      uint64
-	inc     *big.Int
-	hi, lo  big.Int
-	entropy []byte
+	inc     uint64
+	entropy uint80
 }
 
 func (m *monotonic) MonotonicRead(ms uint64, entropy []byte) (err error) {
-	if len(m.entropy) != 0 && m.ms == ms {
+	if !m.entropy.IsZero() && m.ms == ms {
 		err = m.increment()
-		copy(entropy, m.entropy)
+		m.entropy.AppendTo(entropy)
 	} else if _, err = io.ReadFull(m.Reader, entropy); err == nil {
 		m.ms = ms
-		m.entropy = append(m.entropy[:0], entropy...)
+		m.entropy.SetBytes(entropy)
 	}
 	return err
 }
 
-var (
-	one             = big.NewInt(1)
-	maxEntropyBytes = bytes.Repeat([]byte{255}, 10)
-	maxEntropy      = new(big.Int).SetBytes(maxEntropyBytes)
-)
-
 // increment the previous entropy number with a random number
 // of up to m.inc, except when it would exceed maxEntropy.
 func (m *monotonic) increment() (err error) {
-	switch {
-	case m.inc == one: // Fast path
-		for i := len(m.entropy) - 1; i >= 0; i-- {
-			// When wrapping around, we get a zero thus proceeding to the next byte.
-			if m.entropy[i]++; m.entropy[i] != 0 {
-				return nil
-			}
-		}
-		fallthrough
-	case bytes.Compare(m.entropy, maxEntropyBytes) == 0:
+	inc := m.inc
+	if inc > 1 {
+		inc = uint64(m.rng.Int63n(int64(inc)))
+	}
+
+	if overflow := m.entropy.Add(inc); overflow {
 		return ErrMonotonicOverflow
 	}
 
-	// lo := m.entropy
-	// inc := rand.Intn(hi-lo+1)
-	// m.entropy := 1 + lo + inc
-
-	m.lo.SetBytes(m.entropy)
-
-	if m.hi.Add(&m.lo, m.inc).Cmp(maxEntropy) > 0 {
-		// Increment would overflow maxEntropy, so we cap it.
-		m.hi.Set(maxEntropy)
-	}
-
-	m.hi.Sub(&m.hi, &m.lo)
-	m.hi.Add(&m.hi, one)
-
-	inc, err := crand.Int(m.Reader, &m.hi)
-	if err != nil {
-		return err
-	}
-
-	m.lo.Add(&m.lo, one)
-	m.lo.Add(&m.lo, inc)
-
-	copy(m.entropy, m.lo.Bytes())
-
 	return nil
+}
+
+type uint80 struct {
+	Hi uint16
+	Lo uint64
+}
+
+func (u *uint80) SetBytes(bs []byte) {
+	u.Hi = binary.BigEndian.Uint16(bs[:2])
+	u.Lo = binary.BigEndian.Uint64(bs[2:])
+}
+
+func (u *uint80) AppendTo(bs []byte) {
+	binary.BigEndian.PutUint16(bs[:2], u.Hi)
+	binary.BigEndian.PutUint64(bs[2:], u.Lo)
+}
+
+func (u *uint80) Add(n uint64) (overflow bool) {
+	lo, hi := u.Lo, u.Hi
+	if u.Lo += n; u.Lo < lo {
+		u.Hi++
+	}
+	return u.Hi < hi
+}
+
+func (u uint80) IsZero() bool {
+	return u.Hi == 0 && u.Lo == 0
 }

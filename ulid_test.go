@@ -516,6 +516,9 @@ func TestScan(t *testing.T) {
 func TestMonotonic(t *testing.T) {
 	for ms := 0; ms < 100; ms++ {
 		for inc := 0; inc <= 1; inc++ {
+			inc := inc
+			ms := ms
+
 			t.Run(fmt.Sprintf("ms=%d inc=%d", ms, inc), func(t *testing.T) {
 				t.Parallel()
 
@@ -529,7 +532,7 @@ func TestMonotonic(t *testing.T) {
 						t.Fatal(err)
 					}
 
-					if prev.Compare(next) > 0 {
+					if prev.Compare(next) >= 0 {
 						t.Fatalf("prev: %v %v > next: %v %v",
 							prev.Time(), prev.Entropy(), next.Time(), next.Entropy())
 					}
@@ -540,8 +543,10 @@ func TestMonotonic(t *testing.T) {
 			})
 		}
 	}
+}
 
-	// Test ErrMonotonicOverflow
+func TestMonotonicOverflow(t *testing.T) {
+	t.Parallel()
 
 	entropy := ulid.Monotonic(bytes.NewReader(bytes.Repeat([]byte{0xFF}, 10)), 0)
 	prev, err := ulid.New(0, entropy)
