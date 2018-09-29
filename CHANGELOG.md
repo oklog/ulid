@@ -1,3 +1,7 @@
+## 1.3.0 / 2018-09-29
+
+* Monotonic entropy support (#31)
+
 ## 1.2.0 / 2018-09-09
 
 * Add a function to convert Unix time in milliseconds back to time.Time (#30)
