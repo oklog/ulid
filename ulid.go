@@ -14,10 +14,14 @@
 package ulid
 
 import (
+	"bufio"
 	"bytes"
 	"database/sql/driver"
+	"encoding/binary"
 	"errors"
 	"io"
+	"math"
+	"math/rand"
 	"time"
 )
 
@@ -62,6 +66,10 @@ var (
 	// larger than 7, thereby exceeding the valid bit depth of 128.
 	ErrOverflow = errors.New("ulid: overflow when unmarshaling")
 
+	// ErrMonotonicOverflow is returned by a Monotonic entropy source when
+	// incrementing the previous ULID's entropy bytes would result in overflow.
+	ErrMonotonicOverflow = errors.New("ulid: monotonic entropy overflow")
+
 	// ErrScanValue is returned when the value passed to scan cannot be unmarshaled
 	// into the ULID.
 	ErrScanValue = errors.New("ulid: source value must be a string or byte slice")
@@ -78,8 +86,13 @@ func New(ms uint64, entropy io.Reader) (id ULID, err error) {
 		return id, err
 	}
 
-	if entropy != nil {
-		_, err = io.ReadFull(entropy, id[6:])
+	switch e := entropy.(type) {
+	case nil:
+		return id, err
+	case *monotonic:
+		err = e.MonotonicRead(ms, id[6:])
+	default:
+		_, err = io.ReadFull(e, id[6:])
 	}
 
 	return id, err
@@ -453,4 +466,90 @@ func (id *ULID) Scan(src interface{}) error {
 //	db.Exec("...", stringValuer(id))
 func (id ULID) Value() (driver.Value, error) {
 	return id.MarshalBinary()
+}
+
+// Monotonic returns an entropy source that is guaranteed to return
+// strictly increasing entropy bytes for the same ULID timestamp.
+// On conflicts, the previous ULID entropy is incremented with a
+// random number between 1 and `inc`.
+//
+// When `inc` == 0, it'll be set to math.MaxUint32 which is a secure
+// default.
+//
+// Not safe for concurrent use.
+func Monotonic(entropy io.Reader, inc uint64) io.Reader {
+	m := monotonic{Reader: bufio.NewReader(entropy), inc: inc}
+
+	if m.inc == 0 {
+		m.inc = math.MaxUint32
+	}
+
+	if rng, ok := entropy.(*rand.Rand); ok {
+		m.rng = rng
+	} else {
+		m.rng = rand.New(rand.NewSource(time.Now().UnixNano()))
+	}
+
+	return &m
+}
+
+type monotonic struct {
+	io.Reader
+	rng     *rand.Rand
+	ms      uint64
+	inc     uint64
+	entropy uint80
+}
+
+func (m *monotonic) MonotonicRead(ms uint64, entropy []byte) (err error) {
+	if !m.entropy.IsZero() && m.ms == ms {
+		err = m.increment()
+		m.entropy.AppendTo(entropy)
+	} else if _, err = io.ReadFull(m.Reader, entropy); err == nil {
+		m.ms = ms
+		m.entropy.SetBytes(entropy)
+	}
+	return err
+}
+
+// increment the previous entropy number with a random number
+// of up to m.inc, except when it would exceed maxEntropy.
+func (m *monotonic) increment() (err error) {
+	inc := m.inc
+	if inc > 1 {
+		inc = uint64(m.rng.Int63n(int64(inc)))
+	}
+
+	if overflow := m.entropy.Add(inc); overflow {
+		err = ErrMonotonicOverflow
+	}
+
+	return err
+}
+
+type uint80 struct {
+	Hi uint16
+	Lo uint64
+}
+
+func (u *uint80) SetBytes(bs []byte) {
+	u.Hi = binary.BigEndian.Uint16(bs[:2])
+	u.Lo = binary.BigEndian.Uint64(bs[2:])
+}
+
+func (u *uint80) AppendTo(bs []byte) {
+	binary.BigEndian.PutUint16(bs[:2], u.Hi)
+	binary.BigEndian.PutUint64(bs[2:], u.Lo)
+}
+
+func (u *uint80) Add(n uint64) (overflow bool) {
+	lo, hi := u.Lo, u.Hi
+	if u.Lo += n; u.Lo < lo {
+		u.Hi++
+	}
+	return u.Hi < hi
+}
+
+func (u uint80) IsZero() bool {
+	return u.Hi == 0 && u.Lo == 0
 }
