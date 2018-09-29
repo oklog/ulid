@@ -516,8 +516,7 @@ func TestScan(t *testing.T) {
 func TestMonotonic(t *testing.T) {
 	for ms := 0; ms < 100; ms++ {
 		for inc := 0; inc <= 1; inc++ {
-			inc := inc
-			ms := ms
+			inc, ms := inc, ms
 
 			t.Run(fmt.Sprintf("ms=%d inc=%d", ms, inc), func(t *testing.T) {
 				t.Parallel()
