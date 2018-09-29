@@ -478,15 +478,19 @@ func (id ULID) Value() (driver.Value, error) {
 //
 // Not safe for concurrent use.
 func Monotonic(entropy io.Reader, inc uint64) io.Reader {
-	if inc == 0 {
-		inc = math.MaxUint32
+	m := monotonic{Reader: bufio.NewReader(entropy), inc: inc}
+
+	if m.inc == 0 {
+		m.inc = math.MaxUint32
 	}
 
-	return &monotonic{
-		Reader: bufio.NewReader(entropy),
-		rng:    rand.New(rand.NewSource(time.Now().UnixNano())),
-		inc:    inc,
+	if rng, ok := entropy.(*rand.Rand); ok {
+		m.rng = rng
+	} else {
+		m.rng = rand.New(rand.NewSource(time.Now().UnixNano()))
 	}
+
+	return &m
 }
 
 type monotonic struct {
