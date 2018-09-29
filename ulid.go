@@ -517,10 +517,10 @@ func (m *monotonic) increment() (err error) {
 	}
 
 	if overflow := m.entropy.Add(inc); overflow {
-		return ErrMonotonicOverflow
+		err = ErrMonotonicOverflow
 	}
 
-	return nil
+	return err
 }
 
 type uint80 struct {
