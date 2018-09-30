@@ -30,7 +30,7 @@ import (
 
 func ExampleULID() {
 	t := time.Unix(1000000, 0)
-	entropy := rand.New(ulid.Monotonic(rand.NewSource(t.UnixNano())), 0)
+	entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
 	fmt.Println(ulid.MustNew(ulid.Timestamp(t), entropy))
 	// Output: 0000XSNJG0MQJHBF4QX1EFD6Y3
 }
