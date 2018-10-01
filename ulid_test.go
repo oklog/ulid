@@ -596,6 +596,8 @@ func benchmarkMakeULID(b *testing.B, f func(uint64, io.Reader)) {
 		{"WithMonotonicEntropy_DifferentTimestamp_Inc0", []uint64{122, 123}, ulid.Monotonic(rng, 0)},
 		{"WithMonotonicEntropy_SameTimestamp_Inc1", []uint64{123}, ulid.Monotonic(rng, 1)},
 		{"WithMonotonicEntropy_DifferentTimestamp_Inc1", []uint64{122, 123}, ulid.Monotonic(rng, 1)},
+		{"WithCryptoMonotonicEntropy_SameTimestamp_Inc1", []uint64{123}, ulid.Monotonic(crand.Reader, 1)},
+		{"WithCryptoMonotonicEntropy_DifferentTimestamp_Inc1", []uint64{122, 123}, ulid.Monotonic(crand.Reader, 1)},
 		{"WithoutEntropy", []uint64{123}, nil},
 	} {
 		tc := tc
