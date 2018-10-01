@@ -547,7 +547,14 @@ func TestMonotonic(t *testing.T) {
 func TestMonotonicOverflow(t *testing.T) {
 	t.Parallel()
 
-	entropy := ulid.Monotonic(bytes.NewReader(bytes.Repeat([]byte{0xFF}, 10)), 0)
+	entropy := ulid.Monotonic(
+		io.MultiReader(
+			bytes.NewReader(bytes.Repeat([]byte{0xFF}, 10)), // Entropy for first ULID
+			crand.Reader, // Following random entropy
+		),
+		0,
+	)
+
 	prev, err := ulid.New(0, entropy)
 	if err != nil {
 		t.Fatal(err)

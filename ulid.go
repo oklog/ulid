@@ -21,6 +21,7 @@ import (
 	"errors"
 	"io"
 	"math"
+	"math/bits"
 	"math/rand"
 	"time"
 )
@@ -468,37 +469,39 @@ func (id ULID) Value() (driver.Value, error) {
 	return id.MarshalBinary()
 }
 
-// Monotonic returns an entropy source that is guaranteed to return
+// Monotonic returns an entropy source that is guaranteed to yield
 // strictly increasing entropy bytes for the same ULID timestamp.
 // On conflicts, the previous ULID entropy is incremented with a
-// random number between 1 and `inc`.
+// random number between 1 and `inc` (exclusive).
 //
-// When `inc` == 0, it'll be set to math.MaxUint32 which is a secure
-// default.
+// The provided entropy source must actually yield random bytes or else
+// monotonic reads are not guaranteed to terminate, since there isn't
+// enough randomness to compute an increment number.
 //
-// Not safe for concurrent use.
+// When `inc == 0`, it'll be set to a secure default of `math.MaxUint32`.
+// The lower the value of `inc`, the easier the next ULID within the
+// same millisecond is to guess. If your code depends on ULIDs having
+// secure entropy bytes, then don't go under this default unless you know
+// what you're doing.
+//
+// The returned io.Reader isn't safe for concurrent use.
 func Monotonic(entropy io.Reader, inc uint64) io.Reader {
-	m := monotonic{Reader: bufio.NewReader(entropy), inc: inc}
-
-	if m.inc == 0 {
-		m.inc = math.MaxUint32
+	if inc == 0 {
+		inc = math.MaxUint32
 	}
 
-	if rng, ok := entropy.(*rand.Rand); ok {
-		m.rng = rng
-	} else {
-		m.rng = rand.New(rand.NewSource(time.Now().UnixNano()))
+	return &monotonic{
+		Reader: bufio.NewReader(entropy),
+		inc:    inc,
 	}
-
-	return &m
 }
 
 type monotonic struct {
 	io.Reader
-	rng     *rand.Rand
 	ms      uint64
 	inc     uint64
 	entropy uint80
+	rand    [8]byte
 }
 
 func (m *monotonic) MonotonicRead(ms uint64, entropy []byte) (err error) {
@@ -513,18 +516,65 @@ func (m *monotonic) MonotonicRead(ms uint64, entropy []byte) (err error) {
 }
 
 // increment the previous entropy number with a random number
-// of up to m.inc, except when it would exceed maxEntropy.
-func (m *monotonic) increment() (err error) {
-	inc := m.inc
-	if inc > 1 {
-		inc = uint64(m.rng.Int63n(int64(inc)))
+// of up to m.inc (exclusive).
+func (m *monotonic) increment() error {
+	if inc, err := m.random(); err != nil {
+		return err
+	} else if m.entropy.Add(inc) {
+		return ErrMonotonicOverflow
+	}
+	return nil
+}
+
+// random returns a uniform random value in [1, m.inc), reading entropy
+// from m.Reader When m.inc == 0 || m.inc == 1, it returns 1.
+// Adapted from: https://golang.org/pkg/crypto/rand/#Int
+func (m *monotonic) random() (inc uint64, err error) {
+	if m.inc <= 1 {
+		return 1, nil
 	}
 
-	if overflow := m.entropy.Add(inc); overflow {
-		err = ErrMonotonicOverflow
+	// Fast path for using a rand.Reader directly.
+	if rng, ok := m.Reader.(*rand.Rand); ok {
+		return uint64(rng.Int63n(int64(m.inc))), nil
 	}
 
-	return err
+	// bitLen is the maximum bit length needed to encode a value < m.inc.
+	bitLen := bits.Len64(m.inc)
+
+	// byteLen is the maximum byte length needed to encode a value < m.inc.
+	byteLen := uint(bitLen+7) / 8
+
+	// msbitLen is the number of bits in the most significant byte of m.inc-1.
+	msbitLen := uint(bitLen % 8)
+	if msbitLen == 0 {
+		msbitLen = 8
+	}
+
+	for inc == 0 || inc >= m.inc {
+		if _, err = io.ReadFull(m.Reader, m.rand[:byteLen]); err != nil {
+			return 0, err
+		}
+
+		// Clear bits in the first byte to increase the probability
+		// that the candidate is < m.inc.
+		m.rand[0] &= uint8(int(1<<msbitLen) - 1)
+
+		// Convert the read bytes into an uint64 with byteLen
+		// Optimized unrolled loop.
+		switch byteLen {
+		case 1:
+			inc = uint64(m.rand[0])
+		case 2:
+			inc = uint64(binary.LittleEndian.Uint16(m.rand[:2]))
+		case 4:
+			inc = uint64(binary.LittleEndian.Uint32(m.rand[:4]))
+		case 8:
+			inc = uint64(binary.LittleEndian.Uint64(m.rand[:8]))
+		}
+	}
+
+	return inc, nil
 }
 
 type uint80 struct {
