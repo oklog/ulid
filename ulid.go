@@ -19,6 +19,7 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"math/bits"
@@ -472,7 +473,7 @@ func (id ULID) Value() (driver.Value, error) {
 // Monotonic returns an entropy source that is guaranteed to yield
 // strictly increasing entropy bytes for the same ULID timestamp.
 // On conflicts, the previous ULID entropy is incremented with a
-// random number between 1 and `inc` (exclusive).
+// random number between 1 and `inc` (inclusive).
 //
 // The provided entropy source must actually yield random bytes or else
 // monotonic reads are not guaranteed to terminate, since there isn't
@@ -486,14 +487,20 @@ func (id ULID) Value() (driver.Value, error) {
 //
 // The returned io.Reader isn't safe for concurrent use.
 func Monotonic(entropy io.Reader, inc uint64) io.Reader {
-	if inc == 0 {
-		inc = math.MaxUint32
-	}
-
-	return &monotonic{
+	m := monotonic{
 		Reader: bufio.NewReader(entropy),
 		inc:    inc,
 	}
+
+	if m.inc == 0 {
+		m.inc = math.MaxUint32
+	}
+
+	if rng, ok := entropy.(*rand.Rand); ok {
+		m.rng = rng
+	}
+
+	return &m
 }
 
 type monotonic struct {
@@ -502,6 +509,7 @@ type monotonic struct {
 	inc     uint64
 	entropy uint80
 	rand    [8]byte
+	rng     *rand.Rand
 }
 
 func (m *monotonic) MonotonicRead(ms uint64, entropy []byte) (err error) {
@@ -516,7 +524,7 @@ func (m *monotonic) MonotonicRead(ms uint64, entropy []byte) (err error) {
 }
 
 // increment the previous entropy number with a random number
-// of up to m.inc (exclusive).
+// of up to m.inc (inclusive).
 func (m *monotonic) increment() error {
 	if inc, err := m.random(); err != nil {
 		return err
@@ -534,9 +542,10 @@ func (m *monotonic) random() (inc uint64, err error) {
 		return 1, nil
 	}
 
-	// Fast path for using a rand.Reader directly.
-	if rng, ok := m.Reader.(*rand.Rand); ok {
-		return uint64(rng.Int63n(int64(m.inc))), nil
+	// Fast path for using a underlying rand.Rand directly.
+	if m.rng != nil {
+		// Range: [1, m.inc)
+		return 1 + uint64(m.rng.Int63n(int64(m.inc))), nil
 	}
 
 	// bitLen is the maximum bit length needed to encode a value < m.inc.
@@ -567,14 +576,20 @@ func (m *monotonic) random() (inc uint64, err error) {
 			inc = uint64(m.rand[0])
 		case 2:
 			inc = uint64(binary.LittleEndian.Uint16(m.rand[:2]))
-		case 4:
+		case 3, 4:
 			inc = uint64(binary.LittleEndian.Uint32(m.rand[:4]))
-		case 8:
+		case 5, 6, 7, 8:
 			inc = uint64(binary.LittleEndian.Uint64(m.rand[:8]))
 		}
+
+		// println(inc, " < ", m.inc, " == ", inc < m.inc)
 	}
 
-	return inc, nil
+	fmt.Printf("inc: %d, max: %d, bitLen: %d, byteLen: %d, msbitLen: %d\n",
+		inc, m.inc, bitLen, byteLen, msbitLen)
+
+	// Range: [1, m.inc)
+	return 1 + inc, nil
 }
 
 type uint80 struct {

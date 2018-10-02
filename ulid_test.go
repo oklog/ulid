@@ -18,6 +18,7 @@ import (
 	crand "crypto/rand"
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"strings"
 	"testing"
@@ -514,19 +515,24 @@ func TestScan(t *testing.T) {
 }
 
 func TestMonotonic(t *testing.T) {
-	for ms := 0; ms < 100; ms++ {
-		for inc := 0; inc <= 1; inc++ {
-			inc, ms := inc, ms
+	now := ulid.Now()
+	for _, e := range []struct {
+		name string
+		mk   func() io.Reader
+	}{
+		{"cryptorand", func() io.Reader { return crand.Reader }},
+		{"mathrand", func() io.Reader { return rand.New(rand.NewSource(int64(now))) }},
+	} {
+		for _, inc := range []uint64{0, 1, math.MaxUint8 + 1, math.MaxUint16 + 1} {
+			inc := inc
+			entropy := ulid.Monotonic(e.mk(), uint64(inc))
 
-			t.Run(fmt.Sprintf("ms=%d inc=%d", ms, inc), func(t *testing.T) {
+			t.Run(fmt.Sprintf("entropy=%s/inc=%d", e.name, inc), func(t *testing.T) {
 				t.Parallel()
 
-				r := rand.New(rand.NewSource(int64(ms)))
-				entropy := ulid.Monotonic(r, uint64(inc))
-
 				var prev ulid.ULID
-				for i := 0; i < 100000; i++ {
-					next, err := ulid.New(uint64(ms), entropy)
+				for i := 0; i < 10000; i++ {
+					next, err := ulid.New(123, entropy)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -538,7 +544,6 @@ func TestMonotonic(t *testing.T) {
 
 					prev = next
 				}
-
 			})
 		}
 	}
