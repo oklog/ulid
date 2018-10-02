@@ -18,6 +18,7 @@ import (
 	crand "crypto/rand"
 	"fmt"
 	"io"
+	"math"
 	"math/rand"
 	"strings"
 	"testing"
@@ -514,19 +515,31 @@ func TestScan(t *testing.T) {
 }
 
 func TestMonotonic(t *testing.T) {
-	for ms := 0; ms < 100; ms++ {
-		for inc := 0; inc <= 1; inc++ {
-			inc, ms := inc, ms
+	now := ulid.Now()
+	for _, e := range []struct {
+		name string
+		mk   func() io.Reader
+	}{
+		{"cryptorand", func() io.Reader { return crand.Reader }},
+		{"mathrand", func() io.Reader { return rand.New(rand.NewSource(int64(now))) }},
+	} {
+		for _, inc := range []uint64{
+			0,
+			1,
+			2,
+			math.MaxUint8 + 1,
+			math.MaxUint16 + 1,
+			math.MaxUint32 + 1,
+		} {
+			inc := inc
+			entropy := ulid.Monotonic(e.mk(), uint64(inc))
 
-			t.Run(fmt.Sprintf("ms=%d inc=%d", ms, inc), func(t *testing.T) {
+			t.Run(fmt.Sprintf("entropy=%s/inc=%d", e.name, inc), func(t *testing.T) {
 				t.Parallel()
 
-				r := rand.New(rand.NewSource(int64(ms)))
-				entropy := ulid.Monotonic(r, uint64(inc))
-
 				var prev ulid.ULID
-				for i := 0; i < 100000; i++ {
-					next, err := ulid.New(uint64(ms), entropy)
+				for i := 0; i < 10000; i++ {
+					next, err := ulid.New(123, entropy)
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -538,7 +551,6 @@ func TestMonotonic(t *testing.T) {
 
 					prev = next
 				}
-
 			})
 		}
 	}
@@ -547,7 +559,14 @@ func TestMonotonic(t *testing.T) {
 func TestMonotonicOverflow(t *testing.T) {
 	t.Parallel()
 
-	entropy := ulid.Monotonic(bytes.NewReader(bytes.Repeat([]byte{0xFF}, 10)), 0)
+	entropy := ulid.Monotonic(
+		io.MultiReader(
+			bytes.NewReader(bytes.Repeat([]byte{0xFF}, 10)), // Entropy for first ULID
+			crand.Reader, // Following random entropy
+		),
+		0,
+	)
+
 	prev, err := ulid.New(0, entropy)
 	if err != nil {
 		t.Fatal(err)
@@ -561,127 +580,48 @@ func TestMonotonicOverflow(t *testing.T) {
 }
 
 func BenchmarkNew(b *testing.B) {
-	b.Run("WithCryptoEntropy", func(b *testing.B) {
-		b.SetBytes(int64(len(ulid.ULID{})))
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			_, _ = ulid.New(123, crand.Reader)
-		}
-	})
-
-	b.Run("WithEntropy", func(b *testing.B) {
-		now := time.Now().UTC()
-		entropy := rand.New(rand.NewSource(now.UnixNano()))
-
-		b.SetBytes(int64(len(ulid.ULID{})))
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			_, _ = ulid.New(123, entropy)
-		}
-	})
-
-	b.Run("WithMonotonicEntropy_SameTimestamp_Inc0", func(b *testing.B) {
-		now := time.Now().UTC()
-		entropy := ulid.Monotonic(rand.New(rand.NewSource(now.UnixNano())), 0)
-
-		b.SetBytes(int64(len(ulid.ULID{})))
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			_, _ = ulid.New(123, entropy)
-		}
-	})
-
-	b.Run("WithMonotonicEntropy_DifferentTimestamp_Inc0", func(b *testing.B) {
-		now := time.Now().UTC()
-		entropy := ulid.Monotonic(rand.New(rand.NewSource(now.UnixNano())), 0)
-
-		b.SetBytes(int64(len(ulid.ULID{})))
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			_, _ = ulid.New(uint64(i), entropy)
-		}
-	})
-
-	b.Run("WithMonotonicEntropy_SameTimestamp_Inc1", func(b *testing.B) {
-		now := time.Now().UTC()
-		entropy := ulid.Monotonic(rand.New(rand.NewSource(now.UnixNano())), 1)
-
-		b.SetBytes(int64(len(ulid.ULID{})))
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			_, _ = ulid.New(123, entropy)
-		}
-	})
-
-	b.Run("WithMonotonicEntropy_DifferentTimestamp_Inc1", func(b *testing.B) {
-		now := time.Now().UTC()
-		entropy := ulid.Monotonic(rand.New(rand.NewSource(now.UnixNano())), 1)
-
-		b.SetBytes(int64(len(ulid.ULID{})))
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			_, _ = ulid.New(uint64(i), entropy)
-		}
-	})
-
-	b.Run("WithoutEntropy", func(b *testing.B) {
-		b.SetBytes(int64(len(ulid.ULID{})))
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			_, _ = ulid.New(123, nil)
-		}
+	benchmarkMakeULID(b, func(timestamp uint64, entropy io.Reader) {
+		_, _ = ulid.New(timestamp, entropy)
 	})
 }
 
 func BenchmarkMustNew(b *testing.B) {
-	b.Run("WithCryptoEntropy", func(b *testing.B) {
-		b.SetBytes(int64(len(ulid.ULID{})))
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			_ = ulid.MustNew(123, crand.Reader)
-		}
+	benchmarkMakeULID(b, func(timestamp uint64, entropy io.Reader) {
+		_ = ulid.MustNew(timestamp, entropy)
 	})
+}
 
-	b.Run("WithEntropy", func(b *testing.B) {
-		now := time.Now().UTC()
-		entropy := rand.New(rand.NewSource(now.UnixNano()))
+func benchmarkMakeULID(b *testing.B, f func(uint64, io.Reader)) {
+	b.ReportAllocs()
+	b.SetBytes(int64(len(ulid.ULID{})))
 
-		b.SetBytes(int64(len(ulid.ULID{})))
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			_ = ulid.MustNew(123, entropy)
-		}
-	})
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	b.Run("WithMonotonicEntropy_SameTimestamp", func(b *testing.B) {
-		now := time.Now().UTC()
-		entropy := ulid.Monotonic(rand.New(rand.NewSource(now.UnixNano())), 0)
-
-		b.SetBytes(int64(len(ulid.ULID{})))
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			_ = ulid.MustNew(123, entropy)
-		}
-	})
-
-	b.Run("WithMonotonicEntropy_DifferentTimestamp", func(b *testing.B) {
-		now := time.Now().UTC()
-		entropy := ulid.Monotonic(rand.New(rand.NewSource(now.UnixNano())), 0)
-
-		b.SetBytes(int64(len(ulid.ULID{})))
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			_ = ulid.MustNew(uint64(i), entropy)
-		}
-	})
-
-	b.Run("WithoutEntropy", func(b *testing.B) {
-		b.SetBytes(int64(len(ulid.ULID{})))
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			_ = ulid.MustNew(123, nil)
-		}
-	})
+	for _, tc := range []struct {
+		name       string
+		timestamps []uint64
+		entropy    io.Reader
+	}{
+		{"WithCrypoEntropy", []uint64{123}, crand.Reader},
+		{"WithEntropy", []uint64{123}, rng},
+		{"WithMonotonicEntropy_SameTimestamp_Inc0", []uint64{123}, ulid.Monotonic(rng, 0)},
+		{"WithMonotonicEntropy_DifferentTimestamp_Inc0", []uint64{122, 123}, ulid.Monotonic(rng, 0)},
+		{"WithMonotonicEntropy_SameTimestamp_Inc1", []uint64{123}, ulid.Monotonic(rng, 1)},
+		{"WithMonotonicEntropy_DifferentTimestamp_Inc1", []uint64{122, 123}, ulid.Monotonic(rng, 1)},
+		{"WithCryptoMonotonicEntropy_SameTimestamp_Inc1", []uint64{123}, ulid.Monotonic(crand.Reader, 1)},
+		{"WithCryptoMonotonicEntropy_DifferentTimestamp_Inc1", []uint64{122, 123}, ulid.Monotonic(crand.Reader, 1)},
+		{"WithoutEntropy", []uint64{123}, nil},
+	} {
+		tc := tc
+		b.Run(tc.name, func(b *testing.B) {
+			b.StopTimer()
+			b.ResetTimer()
+			b.StartTimer()
+			for i := 0; i < b.N; i++ {
+				f(tc.timestamps[i%len(tc.timestamps)], tc.entropy)
+			}
+		})
+	}
 }
 
 func BenchmarkParse(b *testing.B) {
