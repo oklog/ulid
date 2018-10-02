@@ -581,8 +581,6 @@ func (m *monotonic) random() (inc uint64, err error) {
 		case 5, 6, 7, 8:
 			inc = uint64(binary.LittleEndian.Uint64(m.rand[:8]))
 		}
-
-		// println(inc, " < ", m.inc, " == ", inc < m.inc)
 	}
 
 	fmt.Printf("inc: %d, max: %d, bitLen: %d, byteLen: %d, msbitLen: %d\n",
