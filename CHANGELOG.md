@@ -1,3 +1,7 @@
+## 1.3.1 / 2018-10-02
+
+* Use underlying entropy source for random increments in Monotonic (#32)
+
 ## 1.3.0 / 2018-09-29
 
 * Monotonic entropy support (#31)
