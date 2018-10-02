@@ -19,7 +19,6 @@ import (
 	"database/sql/driver"
 	"encoding/binary"
 	"errors"
-	"fmt"
 	"io"
 	"math"
 	"math/bits"
@@ -582,9 +581,6 @@ func (m *monotonic) random() (inc uint64, err error) {
 			inc = uint64(binary.LittleEndian.Uint64(m.rand[:8]))
 		}
 	}
-
-	fmt.Printf("inc: %d, max: %d, bitLen: %d, byteLen: %d, msbitLen: %d\n",
-		inc, m.inc, bitLen, byteLen, msbitLen)
 
 	// Range: [1, m.inc)
 	return 1 + inc, nil
