@@ -535,7 +535,7 @@ func (m *monotonic) increment() error {
 }
 
 // random returns a uniform random value in [1, m.inc), reading entropy
-// from m.Reader When m.inc == 0 || m.inc == 1, it returns 1.
+// from m.Reader. When m.inc == 0 || m.inc == 1, it returns 1.
 // Adapted from: https://golang.org/pkg/crypto/rand/#Int
 func (m *monotonic) random() (inc uint64, err error) {
 	if m.inc <= 1 {
