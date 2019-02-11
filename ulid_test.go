@@ -469,6 +469,8 @@ func TestCompare(t *testing.T) {
 }
 
 func TestOverflowHandling(t *testing.T) {
+	t.Parallel()
+
 	for s, want := range map[string]error{
 		"00000000000000000000000000": nil,
 		"70000000000000000000000000": nil,
@@ -484,6 +486,8 @@ func TestOverflowHandling(t *testing.T) {
 }
 
 func TestScan(t *testing.T) {
+	t.Parallel()
+
 	id := ulid.MustNew(123, crand.Reader)
 
 	for _, tc := range []struct {
@@ -515,6 +519,8 @@ func TestScan(t *testing.T) {
 }
 
 func TestMonotonic(t *testing.T) {
+	t.Parallel()
+
 	now := ulid.Now()
 	for _, e := range []struct {
 		name string
