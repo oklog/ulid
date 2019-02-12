@@ -469,6 +469,8 @@ func TestCompare(t *testing.T) {
 }
 
 func TestOverflowHandling(t *testing.T) {
+	t.Parallel()
+
 	for s, want := range map[string]error{
 		"00000000000000000000000000": nil,
 		"70000000000000000000000000": nil,
