@@ -89,13 +89,7 @@ func parse(s string, local bool, f func(time.Time) string) {
 		os.Exit(1)
 	}
 
-	var (
-		msec = id.Time()
-		sec  = msec / 1e3
-		rem  = msec % 1e3
-		nsec = rem * 1e6
-		t    = time.Unix(int64(sec), int64(nsec))
-	)
+	t := ulid.Time(id.Time())
 	if !local {
 		t = t.UTC()
 	}
