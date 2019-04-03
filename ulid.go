@@ -76,6 +76,15 @@ var (
 	ErrScanValue = errors.New("ulid: source value must be a string or byte slice")
 )
 
+// MonotonicReader is an interface that should yield monotonically increasing
+// entropy into the provided slice for all calls with the same ms parameter. If
+// a MonotonicReader is provided to the New constructor, its MonotonicRead
+// method will be used instead of Read.
+type MonotonicReader interface {
+	io.Reader
+	MonotonicRead(ms uint64, p []byte) error
+}
+
 // New returns an ULID with the given Unix milliseconds timestamp and an
 // optional entropy source. Use the Timestamp function to convert
 // a time.Time to Unix milliseconds.
@@ -93,7 +102,7 @@ func New(ms uint64, entropy io.Reader) (id ULID, err error) {
 	switch e := entropy.(type) {
 	case nil:
 		return id, err
-	case *monotonic:
+	case MonotonicReader:
 		err = e.MonotonicRead(ms, id[6:])
 	default:
 		_, err = io.ReadFull(e, id[6:])
@@ -487,9 +496,9 @@ func (id ULID) Value() (driver.Value, error) {
 // secure entropy bytes, then don't go under this default unless you know
 // what you're doing.
 //
-// The returned io.Reader isn't safe for concurrent use.
-func Monotonic(entropy io.Reader, inc uint64) io.Reader {
-	m := monotonic{
+// The returned type isn't safe for concurrent use.
+func Monotonic(entropy io.Reader, inc uint64) *MonotonicEntropy {
+	m := MonotonicEntropy{
 		Reader: bufio.NewReader(entropy),
 		inc:    inc,
 	}
@@ -505,7 +514,8 @@ func Monotonic(entropy io.Reader, inc uint64) io.Reader {
 	return &m
 }
 
-type monotonic struct {
+// MonotonicEntropy is an opaque type that provides monotonic entropy.
+type MonotonicEntropy struct {
 	io.Reader
 	ms      uint64
 	inc     uint64
@@ -514,7 +524,8 @@ type monotonic struct {
 	rng     *rand.Rand
 }
 
-func (m *monotonic) MonotonicRead(ms uint64, entropy []byte) (err error) {
+// MonotonicRead implements the MonotonicReader interface.
+func (m *MonotonicEntropy) MonotonicRead(ms uint64, entropy []byte) (err error) {
 	if !m.entropy.IsZero() && m.ms == ms {
 		err = m.increment()
 		m.entropy.AppendTo(entropy)
@@ -527,7 +538,7 @@ func (m *monotonic) MonotonicRead(ms uint64, entropy []byte) (err error) {
 
 // increment the previous entropy number with a random number
 // of up to m.inc (inclusive).
-func (m *monotonic) increment() error {
+func (m *MonotonicEntropy) increment() error {
 	if inc, err := m.random(); err != nil {
 		return err
 	} else if m.entropy.Add(inc) {
@@ -539,7 +550,7 @@ func (m *monotonic) increment() error {
 // random returns a uniform random value in [1, m.inc), reading entropy
 // from m.Reader. When m.inc == 0 || m.inc == 1, it returns 1.
 // Adapted from: https://golang.org/pkg/crypto/rand/#Int
-func (m *monotonic) random() (inc uint64, err error) {
+func (m *MonotonicEntropy) random() (inc uint64, err error) {
 	if m.inc <= 1 {
 		return 1, nil
 	}

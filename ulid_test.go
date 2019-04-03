@@ -612,7 +612,7 @@ func TestMonotonicSafe(t *testing.T) {
 					src       = rand.NewSource(seed)
 					entropy   = rand.New(src)
 					monotonic = ulid.Monotonic(entropy, inc)
-					safe      = &safeReader{r: monotonic}
+					safe      = &safeMonotonicReader{MonotonicReader: monotonic}
 				)
 
 				t0 := time.Now()
@@ -627,16 +627,16 @@ func TestMonotonicSafe(t *testing.T) {
 	}
 }
 
-type safeReader struct {
+type safeMonotonicReader struct {
 	mtx sync.Mutex
-	r   io.Reader
+	ulid.MonotonicReader
 }
 
-func (sr *safeReader) Read(p []byte) (n int, err error) {
-	sr.mtx.Lock()
-	n, err = sr.r.Read(p)
-	sr.mtx.Unlock()
-	return n, err
+func (r *safeMonotonicReader) MonotonicRead(ms uint64, p []byte) (err error) {
+	r.mtx.Lock()
+	err = r.MonotonicReader.MonotonicRead(ms, p)
+	r.mtx.Unlock()
+	return err
 }
 
 func BenchmarkNew(b *testing.B) {
