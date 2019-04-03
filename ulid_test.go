@@ -583,20 +583,47 @@ func TestMonotonicOverflow(t *testing.T) {
 }
 
 func TestMonotonicSafe(t *testing.T) {
-	var (
-		seed      = time.Now().UnixNano()
-		src       = rand.NewSource(seed)
-		entropy   = rand.New(src)
-		monotonic = ulid.Monotonic(entropy, 0)
-		safe      = &safeReader{r: monotonic}
-	)
+	t.Parallel()
 
-	t0 := time.Now()
-	u0 := ulid.MustNew(ulid.Timestamp(t0), safe)
-	u1 := ulid.MustNew(ulid.Timestamp(t0), safe)
+	for _, seed := range []int64{
+		0,
+		1,
+		12,
+		123,
+		1234,
+		12345,
+		123456,
+		1234567,
+		12345678,
+		123456789,
+		time.Now().UnixNano(),
+	} {
+		for _, inc := range []uint64{
+			0,
+			1e1,
+			1e2,
+			1e3,
+			1e4,
+			1e6,
+			1e6,
+		} {
+			t.Run(fmt.Sprintf("seed=%d_inc=%d", seed, inc), func(t *testing.T) {
+				var (
+					src       = rand.NewSource(seed)
+					entropy   = rand.New(src)
+					monotonic = ulid.Monotonic(entropy, inc)
+					safe      = &safeReader{r: monotonic}
+				)
 
-	if u0.String() >= u1.String() {
-		t.Fatalf("%s (time %d entropy %x) >= %s (time %d entropy %x)", u0.String(), u0.Time(), u0.Entropy(), u1.String(), u1.Time(), u1.Entropy())
+				t0 := time.Now()
+				u0 := ulid.MustNew(ulid.Timestamp(t0), safe)
+				u1 := ulid.MustNew(ulid.Timestamp(t0), safe)
+
+				if u0.String() >= u1.String() {
+					t.Fatalf("%s (time %d entropy %x) >= %s (time %d entropy %x)", u0.String(), u0.Time(), u0.Entropy(), u1.String(), u1.Time(), u1.Entropy())
+				}
+			})
+		}
 	}
 }
 
