@@ -21,6 +21,7 @@ import (
 	"math"
 	"math/rand"
 	"strings"
+	"sync"
 	"testing"
 	"testing/iotest"
 	"testing/quick"
@@ -579,6 +580,36 @@ func TestMonotonicOverflow(t *testing.T) {
 		t.Errorf("have ulid: %v %v err: %v, want err: %v",
 			next.Time(), next.Entropy(), have, want)
 	}
+}
+
+func TestMonotonicSafe(t *testing.T) {
+	var (
+		seed      = time.Now().UnixNano()
+		src       = rand.NewSource(seed)
+		entropy   = rand.New(src)
+		monotonic = ulid.Monotonic(entropy, 0)
+		safe      = &safeReader{r: monotonic}
+	)
+
+	t0 := time.Now()
+	u0 := ulid.MustNew(ulid.Timestamp(t0), safe)
+	u1 := ulid.MustNew(ulid.Timestamp(t0), safe)
+
+	if u0.String() >= u1.String() {
+		t.Fatalf("%s (time %d entropy %x) >= %s (time %d entropy %x)", u0.String(), u0.Time(), u0.Entropy(), u1.String(), u1.Time(), u1.Entropy())
+	}
+}
+
+type safeReader struct {
+	mtx sync.Mutex
+	r   io.Reader
+}
+
+func (sr *safeReader) Read(p []byte) (n int, err error) {
+	sr.mtx.Lock()
+	n, err = sr.r.Read(p)
+	sr.mtx.Unlock()
+	return n, err
 }
 
 func BenchmarkNew(b *testing.B) {
