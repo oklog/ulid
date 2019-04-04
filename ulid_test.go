@@ -590,15 +590,29 @@ func TestMonotonicSafe(t *testing.T) {
 		entropy   = rand.New(src)
 		monotonic = ulid.Monotonic(entropy, 0)
 		safe      = &safeMonotonicReader{MonotonicReader: monotonic}
+		t0        = ulid.Timestamp(time.Now())
 	)
 
-	t0 := time.Now()
-	u0 := ulid.MustNew(ulid.Timestamp(t0), safe)
-	u1 := ulid.MustNew(ulid.Timestamp(t0), safe)
-
-	if u0.String() >= u1.String() {
-		t.Fatalf("%s (time %d entropy %x) >= %s (time %d entropy %x)", u0.String(), u0.Time(), u0.Entropy(), u1.String(), u1.Time(), u1.Entropy())
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			u0 := ulid.MustNew(t0, safe)
+			u1 := ulid.MustNew(t0, safe)
+			for j := 0; j < 100; j++ {
+				u0, u1 = u1, ulid.MustNew(t0, safe)
+				if u0.String() >= u1.String() {
+					t.Fatalf(
+						"%s (%d %x) >= %s (%d %x)",
+						u0.String(), u0.Time(), u0.Entropy(),
+						u1.String(), u1.Time(), u1.Entropy(),
+					)
+				}
+			}
+		}()
 	}
+	wg.Wait()
 }
 
 type safeMonotonicReader struct {
