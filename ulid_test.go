@@ -593,26 +593,30 @@ func TestMonotonicSafe(t *testing.T) {
 		t0        = ulid.Timestamp(time.Now())
 	)
 
-	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
+	errs := make(chan error, 100)
+	for i := 0; i < cap(errs); i++ {
 		go func() {
-			defer wg.Done()
 			u0 := ulid.MustNew(t0, safe)
 			u1 := ulid.MustNew(t0, safe)
-			for j := 0; j < 100; j++ {
+			for j := 0; j < 1024; j++ {
 				u0, u1 = u1, ulid.MustNew(t0, safe)
 				if u0.String() >= u1.String() {
-					t.Fatalf(
+					errs <- fmt.Errorf(
 						"%s (%d %x) >= %s (%d %x)",
 						u0.String(), u0.Time(), u0.Entropy(),
 						u1.String(), u1.Time(), u1.Entropy(),
 					)
+					return
 				}
 			}
+			errs <- nil
 		}()
 	}
-	wg.Wait()
+	for i := 0; i < cap(errs); i++ {
+		if err := <-errs; err != nil {
+			t.Fatal(err)
+		}
+	}
 }
 
 type safeMonotonicReader struct {
