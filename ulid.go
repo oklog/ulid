@@ -234,6 +234,11 @@ func MustParseStrict(ulid string) ULID {
 	return id
 }
 
+// Bytes returns bytes slice representation of ULID.
+func (u ULID) Bytes() []byte {
+	return u[:]
+}
+
 // String returns a lexicographically sortable string encoded ULID
 // (26 characters, non-standard base 32) e.g. 01AN4Z07BY79KA1307SR9X4MV3
 // Format: tttttttttteeeeeeeeeeeeeeee where t is time and e is entropy
