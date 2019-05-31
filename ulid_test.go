@@ -625,7 +625,7 @@ func TestULID_Bytes(t *testing.T) {
 	id := ulid.MustNew(ulid.Timestamp(tt), entropy)
 	bid := id.Bytes()
 	bid[len(bid)-1]++
-	if bytes.Compare(id.Bytes(), bid) == 0 {
+	if bytes.Equal(id.Bytes(), bid) {
 		t.Error("Bytes() returned a reference to ulid underlying array!")
 	}
 }
