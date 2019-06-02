@@ -1,6 +1,6 @@
 # Universally Unique Lexicographically Sortable Identifier
 
-![Project status](https://img.shields.io/badge/version-2.0.2-yellow.svg)
+[![Project status](https://img.shields.io/github/release/oklog/ulid.svg?style=flat-square)](https://github.com/oklog/ulid/releases/latest)
 [![Build Status](https://secure.travis-ci.org/oklog/ulid.png)](http://travis-ci.org/oklog/ulid)
 [![Go Report Card](https://goreportcard.com/badge/oklog/ulid?cache=0)](https://goreportcard.com/report/oklog/ulid)
 [![Coverage Status](https://coveralls.io/repos/github/oklog/ulid/badge.svg?branch=master&cache=0)](https://coveralls.io/github/oklog/ulid?branch=master)
