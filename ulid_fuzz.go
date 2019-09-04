@@ -7,6 +7,7 @@ import (
 	"encoding/binary"
 )
 
+// FuzzNew tests ULID construction with fuzzed timestamp and entropy.
 func FuzzNew(input []byte) int {
 	var ms uint64
 	binary.Read(bytes.NewReader(input), binary.LittleEndian, &ms)
@@ -32,6 +33,7 @@ func FuzzNew(input []byte) int {
 	return 1
 }
 
+// FuzzParse tests ULID parsing.
 func FuzzParse(input []byte) int {
 	id, err := Parse(string(input))
 	if err != nil {
@@ -51,6 +53,7 @@ func FuzzParse(input []byte) int {
 	return 1
 }
 
+// FuzzParse tests strict ULID parsing.
 func FuzzParseStrict(input []byte) int {
 	id, err := ParseStrict(string(input))
 	if err != nil {
