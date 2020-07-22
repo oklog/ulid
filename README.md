@@ -60,7 +60,7 @@ This repo also provides a tool to generate and parse ULIDs at the command line.
 Installation:
 
 ```shell
-go get github.com/oklog/ulid/cmd/ulid
+env GO111MODULE=on go get github.com/oklog/ulid/cmd/ulid/v2
 ```
 
 Usage:
