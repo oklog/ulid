@@ -33,7 +33,7 @@ A ULID however:
 ## Install
 
 ```shell
-go get github.com/oklog/ulid/v2
+go get github.com/oklog/ulid
 ```
 
 ## Usage
