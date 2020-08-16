@@ -6,7 +6,6 @@
 [![Coverage Status](https://coveralls.io/repos/github/oklog/ulid/badge.svg?branch=master&cache=0)](https://coveralls.io/github/oklog/ulid?branch=master)
 [![GoDoc](https://godoc.org/github.com/oklog/ulid?status.svg)](https://godoc.org/github.com/oklog/ulid)
 [![Apache 2 licensed](https://img.shields.io/badge/license-Apache2-blue.svg)](https://raw.githubusercontent.com/oklog/ulid/master/LICENSE)
-[![fuzzit](https://app.fuzzit.dev/badge?org_id=oklog)](https://app.fuzzit.dev/orgs/oklog/dashboard)
 
 A Go port of [alizain/ulid](https://github.com/alizain/ulid) with binary format implemented.
 
