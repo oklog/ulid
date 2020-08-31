@@ -630,6 +630,17 @@ func TestULID_Bytes(t *testing.T) {
 	}
 }
 
+func TestReverseULID(t *testing.T) {
+	tt := time.Unix(1000000, 0)
+	entropy := ulid.Monotonic(rand.New(rand.NewSource(tt.UnixNano())), 0)
+	id := ulid.MustNewReverse(ulid.Timestamp(tt), entropy)
+	bid := id.Bytes()
+	bid[len(bid)-1]++
+	if bytes.Equal(id.Bytes(), bid) {
+		t.Error("Bytes() returned a reference to ulid underlying array!")
+	}
+}
+
 type safeMonotonicReader struct {
 	mtx sync.Mutex
 	ulid.MonotonicReader

@@ -111,6 +111,26 @@ func New(ms uint64, entropy io.Reader) (id ULID, err error) {
 	return id, err
 }
 
+// NewReverse provides reverse sorting ULID from given Unix milliseconds
+// so that sorting is lexicographically newest to oldest.
+func NewReverse(ms uint64, entropy io.Reader) (id ULID, err error) {
+	if err = id.SetReverseTime(ms); err != nil {
+		return id, err
+	}
+
+	switch e := entropy.(type) {
+	case nil:
+		return id, err
+	case MonotonicReader:
+		err = e.MonotonicRead(ms, id[6:])
+	default:
+		_, err = io.ReadFull(e, id[6:])
+	}
+
+	return id, err
+}
+
+
 // MustNew is a convenience function equivalent to New that panics on failure
 // instead of returning an error.
 func MustNew(ms uint64, entropy io.Reader) ULID {
@@ -120,6 +140,18 @@ func MustNew(ms uint64, entropy io.Reader) ULID {
 	}
 	return id
 }
+
+// MustNewReverse is a convenience function equivalent to NewReverse that
+// panics on failure instead of returning an error.
+func MustNewReverse(ms uint64, entropy io.Reader) ULID {
+	id, err := NewReverse(ms, entropy)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+
 
 // Parse parses an encoded ULID, returning an error in case of failure.
 //
@@ -413,6 +445,14 @@ func Time(ms uint64) time.Time {
 	return time.Unix(s, ns)
 }
 
+// ReverseTime converts inverted milliseconds (ie. maxTime - ms) to time.Time.
+func ReverseTime(rms uint64) time.Time {
+    ms := maxTime - rms
+	s := int64(ms / 1e3)
+	ns := int64((ms % 1e3) * 1e6)
+	return time.Unix(s, ns)
+}
+
 // SetTime sets the time component of the ULID to the given Unix time
 // in milliseconds.
 func (id *ULID) SetTime(ms uint64) error {
@@ -429,6 +469,26 @@ func (id *ULID) SetTime(ms uint64) error {
 
 	return nil
 }
+
+// SetReverseTime sets the time component of the ULID
+// to a value subtracted from maxTime.
+func (id *ULID) SetReverseTime(ms uint64) error {
+	if ms > maxTime {
+		return ErrBigTime
+	}
+    rms := maxTime - ms
+
+	(*id)[0] = byte(rms >> 40)
+	(*id)[1] = byte(rms >> 32)
+	(*id)[2] = byte(rms >> 24)
+	(*id)[3] = byte(rms >> 16)
+	(*id)[4] = byte(rms >> 8)
+	(*id)[5] = byte(rms)
+
+	return nil
+}
+
+
 
 // Entropy returns the entropy from the ULID.
 func (id ULID) Entropy() []byte {
