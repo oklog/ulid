@@ -1,10 +1,10 @@
 # Universally Unique Lexicographically Sortable Identifier
 
 [![Project status](https://img.shields.io/github/release/oklog/ulid.svg?style=flat-square)](https://github.com/oklog/ulid/releases/latest)
-[![Build Status](https://secure.travis-ci.org/oklog/ulid.png)](http://travis-ci.org/oklog/ulid)
+[![Build Status](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Factions-badge.atrox.dev%oklog%2Fulid%2Fbadge&style=flat-square&label=build)](https://github.com/oklog/ulid/actions?query=workflow%3ATest)
 [![Go Report Card](https://goreportcard.com/badge/oklog/ulid?cache=0)](https://goreportcard.com/report/oklog/ulid)
 [![Coverage Status](https://coveralls.io/repos/github/oklog/ulid/badge.svg?branch=master&cache=0)](https://coveralls.io/github/oklog/ulid?branch=master)
-[![GoDoc](https://godoc.org/github.com/oklog/ulid?status.svg)](https://godoc.org/github.com/oklog/ulid)
+[![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/oklog/ulid/v2)
 [![Apache 2 licensed](https://img.shields.io/badge/license-Apache2-blue.svg)](https://raw.githubusercontent.com/oklog/ulid/master/LICENSE)
 
 A Go port of [alizain/ulid](https://github.com/alizain/ulid) with binary format implemented.
@@ -31,6 +31,8 @@ A ULID however:
 
 ## Install
 
+This package requires Go modules.
+
 ```shell
 go get github.com/oklog/ulid/v2
 ```
@@ -56,10 +58,10 @@ func ExampleULID() {
 
 This repo also provides a tool to generate and parse ULIDs at the command line.
 
-Installation:
-
 ```shell
-go get github.com/oklog/ulid/cmd/ulid
+# https://github.com/golang/go/issues/40276
+cd /tmp
+env GO111MODULE=on go get github.com/oklog/ulid/v2/cmd/ulid
 ```
 
 Usage:
