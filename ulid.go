@@ -454,6 +454,18 @@ func (id ULID) Compare(other ULID) int {
 	return bytes.Compare(id[:], other[:])
 }
 
+// Copy sets id equal to the value of other.
+func (id *ULID) Copy(other ULID) {
+	copy(id[:], other[:])
+}
+
+var zeroValueULID ULID
+
+// IsZero returns true when id equals the unitialized value for ULIDs.
+func (id ULID) IsZero() bool {
+	return id.Compare(zeroValueULID) == 0
+}
+
 // Scan implements the sql.Scanner interface. It supports scanning
 // a string or byte slice.
 func (id *ULID) Scan(src interface{}) error {
@@ -487,12 +499,10 @@ func (id *ULID) Scan(src interface{}) error {
 // error. If your use case requires zero-value ULIDs to return a non-nil error,
 // you can create a wrapper type that special-cases this behavior.
 //
-//    var zeroValueULID ulid.ULID
-//
 //    type invalidZeroValuer ulid.ULID
 //
 //    func (v invalidZeroValuer) Value() (driver.Value, error) {
-//        if ulid.ULID(v).Compare(zeroValueULID) == 0 {
+//        if ulid.ULID(v).IsZero() {
 //            return nil, fmt.Errorf("zero value")
 //        }
 //        return ulid.ULID(v).Value()

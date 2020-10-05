@@ -469,6 +469,35 @@ func TestCompare(t *testing.T) {
 	}
 }
 
+func TestCopy(t *testing.T) {
+	t.Parallel()
+
+	var u1 ulid.ULID
+	u2 := ulid.MustNew(ulid.MaxTime(), nil)
+	if u1.Compare(u2) == 0 {
+		t.Errorf("invalid test values:\n  %v\n  %v", u1, u2)
+	}
+
+	u1.Copy(u2)
+	if u1.Compare(u2) != 0 {
+		t.Errorf("copy failed:\n  %v\n  %v", u1, u2)
+	}
+}
+
+func TestIsZero(t *testing.T) {
+	t.Parallel()
+
+	var id ulid.ULID
+	if !id.IsZero() {
+		t.Errorf("IsZero should be true: %v", id)
+	}
+
+	id = ulid.MustNew(ulid.MaxTime(), nil)
+	if id.IsZero() {
+		t.Errorf("IsZero should be false: %v", id)
+	}
+}
+
 func TestOverflowHandling(t *testing.T) {
 	t.Parallel()
 
