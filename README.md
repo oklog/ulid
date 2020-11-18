@@ -57,11 +57,11 @@ func ExampleULID() {
 ## Commandline tool
 
 This repo also provides a tool to generate and parse ULIDs at the command line.
+These commands should install the latest version of the tool at `bin/ulid`:
 
 ```shell
-# https://github.com/golang/go/issues/40276
-cd /tmp
-env GO111MODULE=on go get github.com/oklog/ulid/v2/cmd/ulid
+cd $(mktemp -d)
+env GOPATH=$(pwd) GO111MODULE=on go get -v github.com/oklog/ulid/v2/cmd/ulid
 ```
 
 Usage:
