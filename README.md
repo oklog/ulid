@@ -97,7 +97,7 @@ Below is the current specification of ULID as implemented in this repository.
 **Timestamp**
 - 48 bits
 - UNIX-time in milliseconds
-- Won't run out of space till the year 10895 AD
+- Won't run out of space till the year 10889 AD
 
 **Entropy**
 - 80 bits
