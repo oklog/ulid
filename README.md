@@ -7,7 +7,7 @@
 [![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/oklog/ulid/v2)
 [![Apache 2 licensed](https://img.shields.io/badge/license-Apache2-blue.svg)](https://raw.githubusercontent.com/oklog/ulid/master/LICENSE)
 
-A Go port of [alizain/ulid](https://github.com/alizain/ulid) with binary format implemented.
+A Go port of [ulid/javascript](https://github.com/ulid/javascript) with binary format implemented.
 
 ## Background
 
@@ -179,6 +179,6 @@ BenchmarkCompare-8                    200000000     7.34 ns/op    4359.23 MB/s  
 
 ## Prior Art
 
-- [alizain/ulid](https://github.com/alizain/ulid)
+- [ulid/javascript](https://github.com/ulid/javascript)
 - [RobThree/NUlid](https://github.com/RobThree/NUlid)
 - [imdario/go-ulid](https://github.com/imdario/go-ulid)
