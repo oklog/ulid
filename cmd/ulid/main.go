@@ -14,7 +14,7 @@ import (
 
 const (
 	defaultms = "Mon Jan 02 15:04:05.999 MST 2006"
-	rfc3339ms = "2006-01-02T15:04:05.999MST"
+	rfc3339ms = "2006-01-02T15:04:05.000Z07:00"
 )
 
 func main() {
