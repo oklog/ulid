@@ -1,7 +1,7 @@
 # Universally Unique Lexicographically Sortable Identifier
 
 [![Project status](https://img.shields.io/github/release/oklog/ulid.svg?style=flat-square)](https://github.com/oklog/ulid/releases/latest)
-[![Build Status](https://img.shields.io/endpoint.svg?url=https%3A%2F%2Factions-badge.atrox.dev%oklog%2Fulid%2Fbadge&style=flat-square&label=build)](https://github.com/oklog/ulid/actions?query=workflow%3ATest)
+![Build Status](https://github.com/oklog/ulid/actions/workflows/test.yml/badge.svg)
 [![Go Report Card](https://goreportcard.com/badge/oklog/ulid?cache=0)](https://goreportcard.com/report/oklog/ulid)
 [![Coverage Status](https://coveralls.io/repos/github/oklog/ulid/badge.svg?branch=master&cache=0)](https://coveralls.io/github/oklog/ulid?branch=master)
 [![go.dev reference](https://img.shields.io/badge/go.dev-reference-007d9c?logo=go&logoColor=white&style=flat-square)](https://pkg.go.dev/github.com/oklog/ulid/v2)
