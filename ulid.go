@@ -235,13 +235,13 @@ func MustParseStrict(ulid string) ULID {
 }
 
 // Bytes returns bytes slice representation of ULID.
-func (u ULID) Bytes() []byte {
-	return u[:]
+func (id ULID) Bytes() []byte {
+	return id[:]
 }
 
 // String returns a lexicographically sortable string encoded ULID
-// (26 characters, non-standard base 32) e.g. 01AN4Z07BY79KA1307SR9X4MV3
-// Format: tttttttttteeeeeeeeeeeeeeee where t is time and e is entropy
+// (26 characters, non-standard base 32) e.g. 01AN4Z07BY79KA1307SR9X4MV3.
+// Format: tttttttttteeeeeeeeeeeeeeee where t is time and e is entropy.
 func (id ULID) String() string {
 	ulid := make([]byte, EncodedSize)
 	_ = id.MarshalTextTo(ulid)
