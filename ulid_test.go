@@ -529,7 +529,6 @@ func TestMonotonic(t *testing.T) {
 	}{
 		{"cryptorand", func() io.Reader { return crand.Reader }},
 		{"mathrand", func() io.Reader { return rand.New(rand.NewSource(int64(now))) }},
-		{"poolrand", ulid.DefaultEntropy},
 	} {
 		for _, inc := range []uint64{
 			0,
