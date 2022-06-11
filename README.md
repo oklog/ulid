@@ -42,16 +42,25 @@ go get github.com/oklog/ulid/v2
 An ULID is constructed with a `time.Time` and an `io.Reader` entropy source.
 This design allows for greater flexibility in choosing your trade-offs.
 
-Please note that `rand.Rand` from the `math` package is [*not* safe for concurrent use](https://github.com/golang/go/issues/3611), so consider the following options:
-
-1. Instantiate one per long living go-routine if your concurrency model permits — this option will result in no lock contention.
-
-2. For usage in short lived go-routines (e.g. HTTP handlers), use [`golang.org/x/exp/rand.Rand`](https://pkg.go.dev/golang.org/x/exp/rand#example-LockedSource) which is safe for concurrent use, but can result in a high amount of lock contention if many go-routines concurrently call `Read` on it.
-
-3. When lock contention is too high with the previous approach, use a `sync.Pool` of `rand.Rand` instances.
+If you want sane defaults, just use `ulid.Make()` which will produce a per process monotonically increasing ULID based on the current time that is safe for concurrent use.
 
 ```go
-func ExampleULID() {
+func ExampleMake() {
+	fmt.Println(ulid.Make())
+	// Output: 0000XSNJG0MQJHBF4QX1EFD6Y3
+}
+```
+
+Otherwise, you'll need to provide your own entropy source. Since `rand.Rand` from the `math` package is [*not* safe for concurrent use](https://github.com/golang/go/issues/3611), consider the following guidance:
+
+- Instantiate one `rand.Rand` per long living go-routine if your concurrency model permits — this option will result in no lock contention.
+
+- For usage in short lived go-routines (e.g. HTTP handlers), use [`golang.org/x/exp/rand.Rand`](https://pkg.go.dev/golang.org/x/exp/rand#example-LockedSource) which is safe for concurrent use, but can result in a high amount of lock contention if many go-routines concurrently call `Read` on it.
+
+- When lock contention is too high with the previous approach, use a `sync.Pool` of `rand.Rand` instances. This won't provide any benefits if you need to per process monotonic ULIDs, since using `LockedMonotonicReader` will synchronize all reads anyways.
+
+```go
+func ExampleMustNew() {
 	t := time.Unix(1000000, 0)
 	entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
 	fmt.Println(ulid.MustNew(ulid.Timestamp(t), entropy))
