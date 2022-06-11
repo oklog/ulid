@@ -23,6 +23,7 @@ import (
 	"math"
 	"math/bits"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -119,6 +120,32 @@ func MustNew(ms uint64, entropy io.Reader) ULID {
 		panic(err)
 	}
 	return id
+}
+
+var (
+	entropy     io.Reader
+	entropyOnce sync.Once
+)
+
+// DefaultEntropy returns a thread-safe per process monotonically increasing
+// entropy source.
+func DefaultEntropy() io.Reader {
+	entropyOnce.Do(func() {
+		rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+		entropy = &LockedMonotonicReader{
+			MonotonicReader: Monotonic(rng, 0),
+		}
+	})
+	return entropy
+}
+
+// Make returns an ULID with the current time in Unix milliseconds and
+// monotonically increasing entropy for the same millisecond.
+// It is safe for concurrent use, leveraging a sync.Pool underneath for minimal
+// contention.
+func Make() (id ULID) {
+	// NOTE: MustNew can't panic since DefaultEntropy never returns an error.
+	return MustNew(Now(), DefaultEntropy())
 }
 
 // Parse parses an encoded ULID, returning an error in case of failure.
@@ -531,11 +558,27 @@ func Monotonic(entropy io.Reader, inc uint64) *MonotonicEntropy {
 		m.inc = math.MaxUint32
 	}
 
-	if rng, ok := entropy.(*rand.Rand); ok {
+	if rng, ok := entropy.(rng); ok {
 		m.rng = rng
 	}
 
 	return &m
+}
+
+type rng interface{ Int63n(n int64) int64 }
+
+// LockedMonotonicReader wraps a MonotonicReader with a sync.Mutex for
+// safe concurrent use.
+type LockedMonotonicReader struct {
+	mu sync.Mutex
+	MonotonicReader
+}
+
+func (r *LockedMonotonicReader) MonotonicRead(ms uint64, p []byte) (err error) {
+	r.mu.Lock()
+	err = r.MonotonicReader.MonotonicRead(ms, p)
+	r.mu.Unlock()
+	return err
 }
 
 // MonotonicEntropy is an opaque type that provides monotonic entropy.
@@ -545,7 +588,7 @@ type MonotonicEntropy struct {
 	inc     uint64
 	entropy uint80
 	rand    [8]byte
-	rng     *rand.Rand
+	rng     rng
 }
 
 // MonotonicRead implements the MonotonicReader interface.

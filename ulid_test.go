@@ -21,7 +21,6 @@ import (
 	"math"
 	"math/rand"
 	"strings"
-	"sync"
 	"testing"
 	"testing/iotest"
 	"testing/quick"
@@ -525,6 +524,7 @@ func TestMonotonic(t *testing.T) {
 	}{
 		{"cryptorand", func() io.Reader { return crand.Reader }},
 		{"mathrand", func() io.Reader { return rand.New(rand.NewSource(int64(now))) }},
+		{"poolrand", ulid.DefaultEntropy},
 	} {
 		for _, inc := range []uint64{
 			0,
@@ -586,11 +586,8 @@ func TestMonotonicSafe(t *testing.T) {
 	t.Parallel()
 
 	var (
-		src       = rand.NewSource(time.Now().UnixNano())
-		entropy   = rand.New(src)
-		monotonic = ulid.Monotonic(entropy, 0)
-		safe      = &safeMonotonicReader{MonotonicReader: monotonic}
-		t0        = ulid.Timestamp(time.Now())
+		safe = ulid.DefaultEntropy()
+		t0   = ulid.Timestamp(time.Now())
 	)
 
 	errs := make(chan error, 100)
@@ -628,18 +625,6 @@ func TestULID_Bytes(t *testing.T) {
 	if bytes.Equal(id.Bytes(), bid) {
 		t.Error("Bytes() returned a reference to ulid underlying array!")
 	}
-}
-
-type safeMonotonicReader struct {
-	mtx sync.Mutex
-	ulid.MonotonicReader
-}
-
-func (r *safeMonotonicReader) MonotonicRead(ms uint64, p []byte) (err error) {
-	r.mtx.Lock()
-	err = r.MonotonicReader.MonotonicRead(ms, p)
-	r.mtx.Unlock()
-	return err
 }
 
 func BenchmarkNew(b *testing.B) {
