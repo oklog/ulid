@@ -60,6 +60,11 @@ func TestNew(t *testing.T) {
 	})
 }
 
+func TestMake(t *testing.T) {
+	t.Parallel()
+	t.Log(ulid.Make())
+}
+
 func TestMustNew(t *testing.T) {
 	t.Parallel()
 
@@ -141,7 +146,7 @@ func TestRoundTrips(t *testing.T) {
 			id == ulid.MustParseStrict(id.String())
 	}
 
-	err := quick.Check(prop, &quick.Config{MaxCount: 1E5})
+	err := quick.Check(prop, &quick.Config{MaxCount: 1e5})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -228,7 +233,7 @@ func TestEncoding(t *testing.T) {
 		return true
 	}
 
-	if err := quick.Check(prop, &quick.Config{MaxCount: 1E5}); err != nil {
+	if err := quick.Check(prop, &quick.Config{MaxCount: 1e5}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -257,7 +262,7 @@ func TestLexicographicalOrder(t *testing.T) {
 		top = next
 	}
 
-	if err := quick.Check(prop, &quick.Config{MaxCount: 1E6}); err != nil {
+	if err := quick.Check(prop, &quick.Config{MaxCount: 1e6}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -315,7 +320,7 @@ func TestParseRobustness(t *testing.T) {
 		return err == nil
 	}
 
-	err := quick.Check(prop, &quick.Config{MaxCount: 1E4})
+	err := quick.Check(prop, &quick.Config{MaxCount: 1e4})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -367,7 +372,7 @@ func TestTimestampRoundTrips(t *testing.T) {
 		return ts == ulid.Timestamp(ulid.Time(ts))
 	}
 
-	err := quick.Check(prop, &quick.Config{MaxCount: 1E5})
+	err := quick.Check(prop, &quick.Config{MaxCount: 1e5})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -446,7 +451,7 @@ func TestEntropyRead(t *testing.T) {
 		return eq
 	}
 
-	if err := quick.Check(prop, &quick.Config{MaxCount: 1E4}); err != nil {
+	if err := quick.Check(prop, &quick.Config{MaxCount: 1e4}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -462,7 +467,7 @@ func TestCompare(t *testing.T) {
 		return a.Compare(b)
 	}
 
-	err := quick.CheckEqual(a, b, &quick.Config{MaxCount: 1E5})
+	err := quick.CheckEqual(a, b, &quick.Config{MaxCount: 1e5})
 	if err != nil {
 		t.Error(err)
 	}
