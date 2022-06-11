@@ -42,8 +42,13 @@ go get github.com/oklog/ulid/v2
 An ULID is constructed with a `time.Time` and an `io.Reader` entropy source.
 This design allows for greater flexibility in choosing your trade-offs.
 
-Please note that `rand.Rand` from the `math` package is *not* safe for concurrent use.
-Instantiate one per long living go-routine or use a `sync.Pool` if you want to avoid the potential contention of a locked `rand.Source` as its been frequently observed in the package level functions.
+Please note that `rand.Rand` from the `math` package is [*not* safe for concurrent use](https://github.com/golang/go/issues/3611), so consider the following options:
+
+1. Instantiate one per long living go-routine if your concurrency model permits — this option will result in no lock contention.
+
+2. For usage in short lived go-routines (e.g. HTTP handlers), use [`golang.org/x/exp/rand.Rand`](https://pkg.go.dev/golang.org/x/exp/rand#example-LockedSource) which is safe for concurrent use, but can result in a high amount of lock contention if many go-routines concurrently call `Read` on it.
+
+3. When lock contention is too high with the previous approach, use a `sync.Pool` of `rand.Rand` instances.
 
 ```go
 func ExampleULID() {
