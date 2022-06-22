@@ -39,20 +39,70 @@ go get github.com/oklog/ulid/v2
 
 ## Usage
 
-An ULID is constructed with a `time.Time` and an `io.Reader` entropy source.
-This design allows for greater flexibility in choosing your trade-offs.
+ULIDs are constructed from two things: a timestamp with millisecond precision,
+and some random data.
 
-Please note that `rand.Rand` from the `math` package is *not* safe for concurrent use.
-Instantiate one per long living go-routine or use a `sync.Pool` if you want to avoid the potential contention of a locked `rand.Source` as its been frequently observed in the package level functions.
+Timestamps are modeled as uint64 values representing a Unix time in milliseconds.
+They can be produced by passing a [time.Time](https://pkg.go.dev/time#Time) to
+[ulid.Timestamp](https://pkg.go.dev/github.com/oklog/ulid/v2#Timestamp),
+or by calling  [time.Time.UnixMilli](https://pkg.go.dev/time#Time.UnixMilli)
+and converting the returned value to `uint64`.
+
+Random data is taken from a provided [io.Reader](https://pkg.go.dev/io#Reader).
+This design allows for greater flexibility when choosing trade-offs, but can be
+a bit confusing to newcomers.
+
+If you just want to generate a ULID and don't (yet) care about details like
+performance, cryptographic security, monotonicity, etc., use the
+[ulid.Make](https://pkg.go.dev/github.com/oklog/ulid/v2#Make) helper function.
+This function calls [time.Now](https://pkg.go.dev/time#Now) to get a timestamp,
+and uses a source of entropy which is process-global,
+[pseudo-random](https://pkg.go.dev/math/rand)), and
+[monotonic](https://pkg.go.dev/oklog/ulid/v2#LockedMonotonicReader)).
 
 ```go
-func ExampleULID() {
-	t := time.Unix(1000000, 0)
-	entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
-	fmt.Println(ulid.MustNew(ulid.Timestamp(t), entropy))
-	// Output: 0000XSNJG0MQJHBF4QX1EFD6Y3
-}
+println(ulid.Make())
+// 01G65Z755AFWAKHE12NY0CQ9FH
 ```
+
+More advanced use cases should utilize
+[ulid.New](https://pkg.go.dev/github.com/oklog/ulid/v2#New).
+
+```go
+entropy := rand.New(rand.NewSource(time.Now().UnixNano()))
+ms := ulid.Timestamp(time.Now())
+println(ulid.New(ms, entropy))
+// 01G65Z755AFWAKHE12NY0CQ9FH
+```
+
+Care should be taken when providing a source of entropy.
+
+The above example utilizes [math/rand.Rand](https://pkg.go.dev/math/rand#Rand),
+which is not safe for concurrent use by multiple goroutines. Consider
+alternatives such as
+[x/exp/rand](https://pkg.go.dev/golang.org/x/exp/rand#LockedSource).
+Security-sensitive use cases should always use cryptographically secure entropy
+provided by [crypto/rand](https://pkg.go.dev/crypto/rand).
+
+Performance-sensitive use cases should avoid synchronization when generating
+IDs. One option is to use a unique source of entropy for each concurrent
+goroutine, which results in no lock contention, but cannot provide strong
+guarantees about the random data, and does not provide monotonicity within a
+given millisecond. One common performance optimization is to pool sources of
+entropy using a [sync.Pool](https://pkg.go.dev/sync#Pool).
+
+Monotonicity is a property that says each ULID is "bigger than" the previous
+one. ULIDs are automatically monotonic, but only to millisecond precision. ULIDs
+generated within the same millisecond are ordered by their random component,
+which means they are by default un-ordered. You can use
+[ulid.MonotonicEntropy](https://pkg.go.dev/oklog/ulid/v2#MonotonicEntropy) or
+[ulid.LockedMonotonicEntropy](https://pkg.go.dev/oklog/ulid/v2#LockedMonotonicEntropy)
+to create ULIDs that are monotonic within a given millisecond, with caveats. See
+the documentation for details.
+
+If you don't care about time-based ordering of generated IDs, then there's no
+reason to use ULIDs! There are many other kinds of IDs that are easier, faster,
+smaller, etc. Consider UUIDs.
 
 ## Commandline tool
 

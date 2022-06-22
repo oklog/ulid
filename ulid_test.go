@@ -21,7 +21,6 @@ import (
 	"math"
 	"math/rand"
 	"strings"
-	"sync"
 	"testing"
 	"testing/iotest"
 	"testing/quick"
@@ -59,6 +58,18 @@ func TestNew(t *testing.T) {
 			t.Errorf("got err %v, want %v", got, want)
 		}
 	})
+}
+
+func TestMake(t *testing.T) {
+	t.Parallel()
+	id := ulid.Make()
+	rt, err := ulid.Parse(id.String())
+	if err != nil {
+		t.Fatalf("parse %q: %v", id.String(), err)
+	}
+	if id != rt {
+		t.Fatalf("%q != %q", id.String(), rt.String())
+	}
 }
 
 func TestMustNew(t *testing.T) {
@@ -142,7 +153,7 @@ func TestRoundTrips(t *testing.T) {
 			id == ulid.MustParseStrict(id.String())
 	}
 
-	err := quick.Check(prop, &quick.Config{MaxCount: 1E5})
+	err := quick.Check(prop, &quick.Config{MaxCount: 1e5})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +240,7 @@ func TestEncoding(t *testing.T) {
 		return true
 	}
 
-	if err := quick.Check(prop, &quick.Config{MaxCount: 1E5}); err != nil {
+	if err := quick.Check(prop, &quick.Config{MaxCount: 1e5}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -258,7 +269,7 @@ func TestLexicographicalOrder(t *testing.T) {
 		top = next
 	}
 
-	if err := quick.Check(prop, &quick.Config{MaxCount: 1E6}); err != nil {
+	if err := quick.Check(prop, &quick.Config{MaxCount: 1e6}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -316,7 +327,7 @@ func TestParseRobustness(t *testing.T) {
 		return err == nil
 	}
 
-	err := quick.Check(prop, &quick.Config{MaxCount: 1E4})
+	err := quick.Check(prop, &quick.Config{MaxCount: 1e4})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -368,7 +379,7 @@ func TestTimestampRoundTrips(t *testing.T) {
 		return ts == ulid.Timestamp(ulid.Time(ts))
 	}
 
-	err := quick.Check(prop, &quick.Config{MaxCount: 1E5})
+	err := quick.Check(prop, &quick.Config{MaxCount: 1e5})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -447,7 +458,7 @@ func TestEntropyRead(t *testing.T) {
 		return eq
 	}
 
-	if err := quick.Check(prop, &quick.Config{MaxCount: 1E4}); err != nil {
+	if err := quick.Check(prop, &quick.Config{MaxCount: 1e4}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -463,7 +474,7 @@ func TestCompare(t *testing.T) {
 		return a.Compare(b)
 	}
 
-	err := quick.CheckEqual(a, b, &quick.Config{MaxCount: 1E5})
+	err := quick.CheckEqual(a, b, &quick.Config{MaxCount: 1e5})
 	if err != nil {
 		t.Error(err)
 	}
@@ -586,11 +597,8 @@ func TestMonotonicSafe(t *testing.T) {
 	t.Parallel()
 
 	var (
-		src       = rand.NewSource(time.Now().UnixNano())
-		entropy   = rand.New(src)
-		monotonic = ulid.Monotonic(entropy, 0)
-		safe      = &safeMonotonicReader{MonotonicReader: monotonic}
-		t0        = ulid.Timestamp(time.Now())
+		safe = ulid.DefaultEntropy()
+		t0   = ulid.Timestamp(time.Now())
 	)
 
 	errs := make(chan error, 100)
@@ -628,18 +636,6 @@ func TestULID_Bytes(t *testing.T) {
 	if bytes.Equal(id.Bytes(), bid) {
 		t.Error("Bytes() returned a reference to ulid underlying array!")
 	}
-}
-
-type safeMonotonicReader struct {
-	mtx sync.Mutex
-	ulid.MonotonicReader
-}
-
-func (r *safeMonotonicReader) MonotonicRead(ms uint64, p []byte) (err error) {
-	r.mtx.Lock()
-	err = r.MonotonicReader.MonotonicRead(ms, p)
-	r.mtx.Unlock()
-	return err
 }
 
 func BenchmarkNew(b *testing.B) {
