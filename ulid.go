@@ -574,6 +574,7 @@ type LockedMonotonicReader struct {
 	MonotonicReader
 }
 
+// MonotonicRead synchronizes calls to the wrapped MonotonicReader.
 func (r *LockedMonotonicReader) MonotonicRead(ms uint64, p []byte) (err error) {
 	r.mu.Lock()
 	err = r.MonotonicReader.MonotonicRead(ms, p)

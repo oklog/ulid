@@ -62,7 +62,14 @@ func TestNew(t *testing.T) {
 
 func TestMake(t *testing.T) {
 	t.Parallel()
-	t.Log(ulid.Make())
+	id := ulid.Make()
+	rt, err := ulid.Parse(id.String())
+	if err != nil {
+		t.Fatalf("parse %q: %v", id.String(), err)
+	}
+	if id != rt {
+		t.Fatalf("%q != %q", id.String(), rt.String())
+	}
 }
 
 func TestMustNew(t *testing.T) {
