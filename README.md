@@ -58,7 +58,7 @@ performance, cryptographic security, monotonicity, etc., use the
 This function calls [time.Now](https://pkg.go.dev/time#Now) to get a timestamp,
 and uses a source of entropy which is process-global,
 [pseudo-random](https://pkg.go.dev/math/rand)), and
-[monotonic](https://pkg.go.dev/oklog/ulid/v2#LockedMonotonicReader)).
+[monotonic](https://pkg.go.dev/github.com/oklog/ulid/v2#LockedMonotonicReader)).
 
 ```go
 println(ulid.Make())
@@ -95,8 +95,8 @@ Monotonicity is a property that says each ULID is "bigger than" the previous
 one. ULIDs are automatically monotonic, but only to millisecond precision. ULIDs
 generated within the same millisecond are ordered by their random component,
 which means they are by default un-ordered. You can use
-[ulid.MonotonicEntropy](https://pkg.go.dev/oklog/ulid/v2#MonotonicEntropy) or
-[ulid.LockedMonotonicEntropy](https://pkg.go.dev/oklog/ulid/v2#LockedMonotonicEntropy)
+[ulid.MonotonicEntropy](https://pkg.go.dev/github.com/oklog/ulid/v2#MonotonicEntropy) or
+[ulid.LockedMonotonicEntropy](https://pkg.go.dev/github.com/oklog/ulid/v2#LockedMonotonicEntropy)
 to create ULIDs that are monotonic within a given millisecond, with caveats. See
 the documentation for details.
 
