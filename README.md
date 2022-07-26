@@ -107,11 +107,9 @@ smaller, etc. Consider UUIDs.
 ## Commandline tool
 
 This repo also provides a tool to generate and parse ULIDs at the command line.
-These commands should install the latest version of the tool at `bin/ulid`:
 
 ```shell
-cd $(mktemp -d)
-env GOPATH=$(pwd) GO111MODULE=on go get -v github.com/oklog/ulid/v2/cmd/ulid
+go install github.com/oklog/ulid/v2/cmd/ulid@latest
 ```
 
 Usage:
