@@ -53,12 +53,12 @@ This design allows for greater flexibility when choosing trade-offs, but can be
 a bit confusing to newcomers.
 
 If you just want to generate a ULID and don't (yet) care about details like
-performance, cryptographic security, monotonicity, etc., use the
+performance, cryptographic security, etc., use the
 [ulid.Make](https://pkg.go.dev/github.com/oklog/ulid/v2#Make) helper function.
 This function calls [time.Now](https://pkg.go.dev/time#Now) to get a timestamp,
 and uses a source of entropy which is process-global,
-[pseudo-random](https://pkg.go.dev/math/rand)), and
-[monotonic](https://pkg.go.dev/github.com/oklog/ulid/v2#LockedMonotonicReader)).
+[pseudo-random](https://pkg.go.dev/math/rand), and
+[monotonic](https://pkg.go.dev/github.com/oklog/ulid/v2#LockedMonotonicReader).
 
 ```go
 println(ulid.Make())
