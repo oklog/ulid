@@ -148,6 +148,12 @@ func Make() (id ULID) {
 	return MustNew(Now(), DefaultEntropy())
 }
 
+// MakeFromTime returns an ULID with the given timestamp and DefaultEntropy.
+// It is equivalent to `MustNew(Timestamp(t), DefaultEntropy())`.
+func MakeFromTime(t time.Time) ULID {
+	return MustNew(Timestamp(t), DefaultEntropy())
+}
+
 // Parse parses an encoded ULID, returning an error in case of failure.
 //
 // ErrDataSize is returned if the len(ulid) is different from an encoded

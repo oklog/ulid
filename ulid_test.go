@@ -72,6 +72,18 @@ func TestMake(t *testing.T) {
 	}
 }
 
+func TestMakeFromTime(t *testing.T) {
+	t.Parallel()
+	id := ulid.MakeFromTime(time.Now())
+	rt, err := ulid.Parse(id.String())
+	if err != nil {
+		t.Fatalf("parse %q: %v", id.String(), err)
+	}
+	if id != rt {
+		t.Fatalf("%q != %q", id.String(), rt.String())
+	}
+}
+
 func TestMustNew(t *testing.T) {
 	t.Parallel()
 
