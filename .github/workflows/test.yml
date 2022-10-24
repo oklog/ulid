@@ -9,7 +9,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v3
       - name: fmt
-        run: test -z (gofmt -l .)
+        run: test -z $(gofmt -l .)
       - name: vet
         run: go vet ./...
       - name: staticcheck
