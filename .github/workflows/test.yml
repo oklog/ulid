@@ -8,12 +8,14 @@ jobs:
         uses: actions/checkout@v3
       - name: Install Go
         uses: actions/setup-go@v3
+      - name: fmt
+        run: test -z (gofmt -l .)
+      - name: vet
+        run: go vet ./...
+      - name: staticcheck
+        uses: dominikh/staticcheck-action@v1.2.0
         with:
-          go-version-file: "./go.mod"
-      - name: Lint
-        uses: golangci/golangci-lint-action@v3
-        with:
-          version: latest
+          install-go: false
 
   test:
     strategy:
