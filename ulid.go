@@ -122,6 +122,17 @@ func MustNew(ms uint64, entropy io.Reader) ULID {
 	return id
 }
 
+// MustNewDefault is a convenience function equivalent to New with
+// DefaultEntropy as the entropy. It may panic if the given time.Time is too
+// large or too small.
+func MustNewDefault(t time.Time) ULID {
+	id, err := New(Timestamp(t), DefaultEntropy())
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 var (
 	entropy     io.Reader
 	entropyOnce sync.Once
@@ -146,13 +157,6 @@ func DefaultEntropy() io.Reader {
 func Make() (id ULID) {
 	// NOTE: MustNew can't panic since DefaultEntropy never returns an error.
 	return MustNew(Now(), DefaultEntropy())
-}
-
-// MakeFromTime returns a ULID with the given timestamp and DefaultEntropy.
-// It is equivalent to `MustNew(Timestamp(t), DefaultEntropy())`.
-func MakeFromTime(t time.Time) ULID {
-	// NOTE: MustNew can't panic since DefaultEntropy never returns an error.
-	return MustNew(Timestamp(t), DefaultEntropy())
 }
 
 // Parse parses an encoded ULID, returning an error in case of failure.
