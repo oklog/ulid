@@ -148,9 +148,10 @@ func Make() (id ULID) {
 	return MustNew(Now(), DefaultEntropy())
 }
 
-// MakeFromTime returns an ULID with the given timestamp and DefaultEntropy.
+// MakeFromTime returns a ULID with the given timestamp and DefaultEntropy.
 // It is equivalent to `MustNew(Timestamp(t), DefaultEntropy())`.
 func MakeFromTime(t time.Time) ULID {
+	// NOTE: MustNew can't panic since DefaultEntropy never returns an error.
 	return MustNew(Timestamp(t), DefaultEntropy())
 }
 
