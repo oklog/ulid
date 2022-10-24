@@ -28,7 +28,7 @@ import (
 )
 
 /*
-An ULID is a 16 byte Universally Unique Lexicographically Sortable Identifier
+A ULID is a 16 byte Universally Unique Lexicographically Sortable Identifier
 
 	The components are encoded as 16 octets.
 	Each component is encoded with the MSB first (network byte order).
@@ -60,7 +60,7 @@ var (
 	// size.
 	ErrBufferSize = errors.New("ulid: bad buffer size when marshaling")
 
-	// ErrBigTime is returned when constructing an ULID with a time that is larger
+	// ErrBigTime is returned when constructing a ULID with a time that is larger
 	// than MaxTime.
 	ErrBigTime = errors.New("ulid: time too big")
 
@@ -86,7 +86,7 @@ type MonotonicReader interface {
 	MonotonicRead(ms uint64, p []byte) error
 }
 
-// New returns an ULID with the given Unix milliseconds timestamp and an
+// New returns a ULID with the given Unix milliseconds timestamp and an
 // optional entropy source. Use the Timestamp function to convert
 // a time.Time to Unix milliseconds.
 //
@@ -139,7 +139,7 @@ func DefaultEntropy() io.Reader {
 	return entropy
 }
 
-// Make returns an ULID with the current time in Unix milliseconds and
+// Make returns a ULID with the current time in Unix milliseconds and
 // monotonically increasing entropy for the same millisecond.
 // It is safe for concurrent use, leveraging a sync.Pool underneath for minimal
 // contention.
@@ -294,7 +294,7 @@ func (id ULID) MarshalBinaryTo(dst []byte) error {
 }
 
 // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface by
-// copying the passed data and converting it to an ULID. ErrDataSize is
+// copying the passed data and converting it to a ULID. ErrDataSize is
 // returned if the data length is different from ULID length.
 func (id *ULID) UnmarshalBinary(data []byte) error {
 	if len(data) != len(*id) {
@@ -411,11 +411,11 @@ func (id ULID) Time() uint64 {
 }
 
 // maxTime is the maximum Unix time in milliseconds that can be
-// represented in an ULID.
+// represented in a ULID.
 var maxTime = ULID{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}.Time()
 
 // MaxTime returns the maximum Unix time in milliseconds that
-// can be encoded in an ULID.
+// can be encoded in a ULID.
 func MaxTime() uint64 { return maxTime }
 
 // Now is a convenience function that returns the current
