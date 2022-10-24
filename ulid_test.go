@@ -604,10 +604,9 @@ func TestMonotonicSafe(t *testing.T) {
 	errs := make(chan error, 100)
 	for i := 0; i < cap(errs); i++ {
 		go func() {
-			u0 := ulid.MustNew(t0, safe)
 			u1 := ulid.MustNew(t0, safe)
 			for j := 0; j < 1024; j++ {
-				u0, u1 = u1, ulid.MustNew(t0, safe)
+				u0, u1 := u1, ulid.MustNew(t0, safe)
 				if u0.String() >= u1.String() {
 					errs <- fmt.Errorf(
 						"%s (%d %x) >= %s (%d %x)",
