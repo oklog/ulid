@@ -605,7 +605,7 @@ func TestMonotonicSafe(t *testing.T) {
 	for i := 0; i < cap(errs); i++ {
 		go func() {
 			u0 := ulid.MustNew(t0, safe)
-			u1 := ulid.MustNew(t0, safe)
+			u1 := u0
 			for j := 0; j < 1024; j++ {
 				u0, u1 = u1, ulid.MustNew(t0, safe)
 				if u0.String() >= u1.String() {
