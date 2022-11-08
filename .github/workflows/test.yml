@@ -1,6 +1,22 @@
 on: [push, pull_request]
 name: Test
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+      - name: Install Go
+        uses: actions/setup-go@v3
+      - name: fmt
+        run: test -z $(gofmt -l .)
+      - name: vet
+        run: go vet ./...
+      - name: staticcheck
+        uses: dominikh/staticcheck-action@v1.2.0
+        with:
+          install-go: false
+
   test:
     strategy:
       matrix:
@@ -9,7 +25,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Install Go
-      uses: actions/setup-go@v2
+      uses: actions/setup-go@v3
       with:
         go-version: ${{ matrix.go-version }}
     - name: Check out code
