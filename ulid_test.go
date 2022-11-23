@@ -87,6 +87,30 @@ func TestMustNew(t *testing.T) {
 	})
 }
 
+func TestMustNewDefault(t *testing.T) {
+	t.Parallel()
+
+	t.Run("ULID", func(t *testing.T) {
+		id := ulid.MustNewDefault(time.Now())
+		rt, err := ulid.Parse(id.String())
+		if err != nil {
+			t.Fatalf("parse %q: %v", id.String(), err)
+		}
+		if id != rt {
+			t.Fatalf("%q != %q", id.String(), rt.String())
+		}
+	})
+
+	t.Run("Panic", func(t *testing.T) {
+		defer func() {
+			if got, want := recover(), ulid.ErrBigTime; got != want {
+				t.Errorf("got panic %v, want %v", got, want)
+			}
+		}()
+		_ = ulid.MustNewDefault(time.Time{})
+	})
+}
+
 func TestMustParse(t *testing.T) {
 	t.Parallel()
 
