@@ -120,6 +120,7 @@ Usage: ulid [-hlqz] [-f <format>] [parameters ...]
  -h, --help             print this help text
  -l, --local            when parsing, show local time instead of UTC
  -q, --quick            when generating, use non-crypto-grade entropy
+ -u, --uuid             when parsing or generating, print as UUID string
  -z, --zero             when generating, fix entropy to all-zeroes
 ```
 
@@ -134,6 +135,10 @@ $ ulid 01D78XZ44G0000000000000000
 Sun Mar 31 03:51:23.536 UTC 2019
 $ ulid --format=rfc3339 --local 01D78XZ44G0000000000000000
 2019-03-31T05:51:23.536+02:00
+$ ulid -u 01D78XZ44G0000000000000000
+0169d1df-9090-0000-0000-000000000000
+$ ulid --uuid
+0184ceda-2982-6f83-9645-7fc810743a30
 ```
 
 ## Specification

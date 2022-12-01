@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"database/sql/driver"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"io"
 	"math"
@@ -280,6 +281,25 @@ func (id ULID) String() string {
 	ulid := make([]byte, EncodedSize)
 	_ = id.MarshalTextTo(ulid)
 	return string(ulid)
+}
+
+// UUIDString returns an UUID representation of the ULID
+// (36 characters, 32 hex encoded repr plus 4 dashes)
+// e.g. 01AN4Z07BY79KA1307SR9X4MV3 will be 015549f0-1d7e-3a66-a08c-07ce13d25363
+func (id ULID) UUIDString() string {
+	var buf [36]byte
+
+	hex.Encode(buf[:], id[:4])
+	buf[8] = '-'
+	hex.Encode(buf[9:13], id[4:6])
+	buf[13] = '-'
+	hex.Encode(buf[14:18], id[6:8])
+	buf[18] = '-'
+	hex.Encode(buf[19:23], id[8:10])
+	buf[23] = '-'
+	hex.Encode(buf[24:], id[10:])
+
+	return string(buf[:])
 }
 
 // MarshalBinary implements the encoding.BinaryMarshaler interface by
