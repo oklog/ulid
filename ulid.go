@@ -155,6 +155,11 @@ func Make() (id ULID) {
 	return MustNew(Now(), DefaultEntropy())
 }
 
+// MakeString is a convenience function equivalent to Make().String().
+func MakeString() string {
+	return Make().String()
+}
+
 // Parse parses an encoded ULID, returning an error in case of failure.
 //
 // ErrDataSize is returned if the len(ulid) is different from an encoded
