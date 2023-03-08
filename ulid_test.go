@@ -621,7 +621,8 @@ func TestMonotonicSafe(t *testing.T) {
 	t.Parallel()
 
 	var (
-		safe = ulid.DefaultEntropy()
+		rng  = rand.New(rand.NewSource(time.Now().UnixNano()))
+		safe = &ulid.LockedMonotonicReader{MonotonicReader: ulid.Monotonic(rng, 0)}
 		t0   = ulid.Timestamp(time.Now())
 	)
 
@@ -644,6 +645,7 @@ func TestMonotonicSafe(t *testing.T) {
 			errs <- nil
 		}()
 	}
+
 	for i := 0; i < cap(errs); i++ {
 		if err := <-errs; err != nil {
 			t.Fatal(err)

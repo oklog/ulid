@@ -126,24 +126,18 @@ func MustNew(ms uint64, entropy io.Reader) ULID {
 // DefaultEntropy as the entropy. It may panic if the given time.Time is too
 // large or too small.
 func MustNewDefault(t time.Time) ULID {
-	return MustNew(Timestamp(t), DefaultEntropy())
+	return MustNew(Timestamp(t), defaultEntropy)
 }
 
-var (
-	entropy     io.Reader
-	entropyOnce sync.Once
-)
+var defaultEntropy = func() io.Reader {
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return &LockedMonotonicReader{MonotonicReader: Monotonic(rng, 0)}
+}()
 
 // DefaultEntropy returns a thread-safe per process monotonically increasing
 // entropy source.
 func DefaultEntropy() io.Reader {
-	entropyOnce.Do(func() {
-		rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-		entropy = &LockedMonotonicReader{
-			MonotonicReader: Monotonic(rng, 0),
-		}
-	})
-	return entropy
+	return defaultEntropy
 }
 
 // Make returns a ULID with the current time in Unix milliseconds and
@@ -152,7 +146,7 @@ func DefaultEntropy() io.Reader {
 // contention.
 func Make() (id ULID) {
 	// NOTE: MustNew can't panic since DefaultEntropy never returns an error.
-	return MustNew(Now(), DefaultEntropy())
+	return MustNew(Now(), defaultEntropy)
 }
 
 // Parse parses an encoded ULID, returning an error in case of failure.
