@@ -126,24 +126,18 @@ func MustNew(ms uint64, entropy io.Reader) ULID {
 // DefaultEntropy as the entropy. It may panic if the given time.Time is too
 // large or too small.
 func MustNewDefault(t time.Time) ULID {
-	return MustNew(Timestamp(t), DefaultEntropy())
+	return MustNew(Timestamp(t), defaultEntropy)
 }
 
-var (
-	entropy     io.Reader
-	entropyOnce sync.Once
-)
+var defaultEntropy = func() io.Reader {
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return &LockedMonotonicReader{MonotonicReader: Monotonic(rng, 0)}
+}()
 
 // DefaultEntropy returns a thread-safe per process monotonically increasing
 // entropy source.
 func DefaultEntropy() io.Reader {
-	entropyOnce.Do(func() {
-		rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-		entropy = &LockedMonotonicReader{
-			MonotonicReader: Monotonic(rng, 0),
-		}
-	})
-	return entropy
+	return defaultEntropy
 }
 
 // Make returns a ULID with the current time in Unix milliseconds and
@@ -152,7 +146,7 @@ func DefaultEntropy() io.Reader {
 // contention.
 func Make() (id ULID) {
 	// NOTE: MustNew can't panic since DefaultEntropy never returns an error.
-	return MustNew(Now(), DefaultEntropy())
+	return MustNew(Now(), defaultEntropy)
 }
 
 // Parse parses an encoded ULID, returning an error in case of failure.
@@ -539,20 +533,23 @@ func (id ULID) Value() (driver.Value, error) {
 	return id.MarshalBinary()
 }
 
-// Monotonic returns an entropy source that is guaranteed to yield
-// strictly increasing entropy bytes for the same ULID timestamp.
-// On conflicts, the previous ULID entropy is incremented with a
-// random number between 1 and `inc` (inclusive).
+// Monotonic returns a source of entropy that yields strictly increasing entropy
+// bytes, to a limit governeed by the `inc` parameter.
 //
-// The provided entropy source must actually yield random bytes or else
-// monotonic reads are not guaranteed to terminate, since there isn't
-// enough randomness to compute an increment number.
+// Specifically, calls to MonotonicRead within the same ULID timestamp return
+// entropy incremented by a random number between 1 and `inc` inclusive. If an
+// increment results in entropy that would overflow available space,
+// MonotonicRead returns ErrMonotonicOverflow.
 //
-// When `inc == 0`, it'll be set to a secure default of `math.MaxUint32`.
-// The lower the value of `inc`, the easier the next ULID within the
-// same millisecond is to guess. If your code depends on ULIDs having
-// secure entropy bytes, then don't go under this default unless you know
-// what you're doing.
+// Passing `inc == 0` results in the reasonable default `math.MaxUint32`. Lower
+// values of `inc` provide more monotonic entropy in a single millisecond, at
+// the cost of easier "guessability" of generated ULIDs. If your code depends on
+// ULIDs having secure entropy bytes, then it's recommended to use the secure
+// default value of `inc == 0`, unless you know what you're doing.
+//
+// The provided entropy source must actually yield random bytes. Otherwise,
+// monotonic reads are not guaranteed to terminate, since there isn't enough
+// randomness to compute an increment number.
 //
 // The returned type isn't safe for concurrent use.
 func Monotonic(entropy io.Reader, inc uint64) *MonotonicEntropy {
@@ -574,8 +571,8 @@ func Monotonic(entropy io.Reader, inc uint64) *MonotonicEntropy {
 
 type rng interface{ Int63n(n int64) int64 }
 
-// LockedMonotonicReader wraps a MonotonicReader with a sync.Mutex for
-// safe concurrent use.
+// LockedMonotonicReader wraps a MonotonicReader with a sync.Mutex for safe
+// concurrent use.
 type LockedMonotonicReader struct {
 	mu sync.Mutex
 	MonotonicReader
