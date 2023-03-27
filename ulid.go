@@ -533,20 +533,23 @@ func (id ULID) Value() (driver.Value, error) {
 	return id.MarshalBinary()
 }
 
-// Monotonic returns an entropy source that is guaranteed to yield
-// strictly increasing entropy bytes for the same ULID timestamp.
-// On conflicts, the previous ULID entropy is incremented with a
-// random number between 1 and `inc` (inclusive).
+// Monotonic returns a source of entropy that yields strictly increasing entropy
+// bytes, to a limit governeed by the `inc` parameter.
 //
-// The provided entropy source must actually yield random bytes or else
-// monotonic reads are not guaranteed to terminate, since there isn't
-// enough randomness to compute an increment number.
+// Specifically, calls to MonotonicRead within the same ULID timestamp return
+// entropy incremented by a random number between 1 and `inc` inclusive. If an
+// increment results in entropy that would overflow available space,
+// MonotonicRead returns ErrMonotonicOverflow.
 //
-// When `inc == 0`, it'll be set to a secure default of `math.MaxUint32`.
-// The lower the value of `inc`, the easier the next ULID within the
-// same millisecond is to guess. If your code depends on ULIDs having
-// secure entropy bytes, then don't go under this default unless you know
-// what you're doing.
+// Passing `inc == 0` results in the reasonable default `math.MaxUint32`. Lower
+// values of `inc` provide more monotonic entropy in a single millisecond, at
+// the cost of easier "guessability" of generated ULIDs. If your code depends on
+// ULIDs having secure entropy bytes, then it's recommended to use the secure
+// default value of `inc == 0`, unless you know what you're doing.
+//
+// The provided entropy source must actually yield random bytes. Otherwise,
+// monotonic reads are not guaranteed to terminate, since there isn't enough
+// randomness to compute an increment number.
 //
 // The returned type isn't safe for concurrent use.
 func Monotonic(entropy io.Reader, inc uint64) *MonotonicEntropy {
@@ -568,8 +571,8 @@ func Monotonic(entropy io.Reader, inc uint64) *MonotonicEntropy {
 
 type rng interface{ Int63n(n int64) int64 }
 
-// LockedMonotonicReader wraps a MonotonicReader with a sync.Mutex for
-// safe concurrent use.
+// LockedMonotonicReader wraps a MonotonicReader with a sync.Mutex for safe
+// concurrent use.
 type LockedMonotonicReader struct {
 	mu sync.Mutex
 	MonotonicReader
