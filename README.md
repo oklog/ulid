@@ -230,3 +230,9 @@ BenchmarkCompare-8                    200000000     7.34 ns/op    4359.23 MB/s  
 - [ulid/javascript](https://github.com/ulid/javascript)
 - [RobThree/NUlid](https://github.com/RobThree/NUlid)
 - [imdario/go-ulid](https://github.com/imdario/go-ulid)
+
+## Famous Projects using this package
+
+- [VictoriaMetrics](https://github.com/VictoriaMetrics/VictoriaMetrics)
+- [Prometheus](https://github.com/prometheus/prometheus)
+- [Minio](https://github.com/minio/minio)
