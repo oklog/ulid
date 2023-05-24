@@ -504,6 +504,44 @@ func TestCompare(t *testing.T) {
 	}
 }
 
+func TestULIDComparisonMethods(t *testing.T) {
+	x := ulid.MustNew(12345, nil)
+	y := ulid.MustNew(12345, nil)
+	z := ulid.MustNew(12346, nil)
+
+	if !x.Equal(y) {
+		t.Errorf("Expected Equal to return true for equal ULIDs, got false")
+	}
+
+	if x.Equal(z) {
+		t.Errorf("Expected Equal to return false for unequal ULIDs, got true")
+	}
+
+	if !x.Less(z) {
+		t.Errorf("Expected Less to return true when first ULID is less than second, got false")
+	}
+
+	if x.Less(y) {
+		t.Errorf("Expected Less to return false when ULIDs are equal, got true")
+	}
+
+	if !x.LessEq(y) || !x.LessEq(z) {
+		t.Errorf("Expected LessEq to return true when first ULID is less than or equal to second, got false")
+	}
+
+	if !z.Greater(x) {
+		t.Errorf("Expected Greater to return true when first ULID is greater than second, got false")
+	}
+
+	if y.Greater(y) {
+		t.Errorf("Expected Greater to return false when ULIDs are equal, got true")
+	}
+
+	if !z.GreaterEq(x) || !x.GreaterEq(y) {
+		t.Errorf("Expected GreaterEq to return true when first ULID is greater than or equal to second, got false")
+	}
+}
+
 func TestOverflowHandling(t *testing.T) {
 	t.Parallel()
 

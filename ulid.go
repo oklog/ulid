@@ -483,6 +483,31 @@ func (id ULID) Compare(other ULID) int {
 	return bytes.Compare(id[:], other[:])
 }
 
+// Equal returns true if the ULID instance is equal to the other ULID instance.
+func (u ULID) Equal(other ULID) bool {
+	return u.Compare(other) == 0
+}
+
+// Less returns true if the ULID instance is lexicographically less than the other ULID instance.
+func (u ULID) Less(other ULID) bool {
+	return u.Compare(other) < 0
+}
+
+// LessEq returns true if the ULID instance is lexicographically less than or equal to the other ULID instance.
+func (u ULID) LessEq(other ULID) bool {
+	return u.Compare(other) <= 0
+}
+
+// Greater returns true if the ULID instance is lexicographically greater than the other ULID instance.
+func (u ULID) Greater(other ULID) bool {
+	return u.Compare(other) > 0
+}
+
+// GreaterEq returns true if the ULID instance is lexicographically greater than or equal to the other ULID instance.
+func (u ULID) GreaterEq(other ULID) bool {
+	return u.Compare(other) >= 0
+}
+
 // Scan implements the sql.Scanner interface. It supports scanning
 // a string or byte slice.
 func (id *ULID) Scan(src interface{}) error {
