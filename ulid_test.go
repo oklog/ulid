@@ -194,8 +194,10 @@ func TestMarshalingErrors(t *testing.T) {
 	}{
 		{"UnmarshalBinary", id.UnmarshalBinary, ulid.ErrDataSize},
 		{"UnmarshalText", id.UnmarshalText, ulid.ErrDataSize},
+		{"UnmarshalJSON", id.UnmarshalJSON, ulid.ErrDataSize},
 		{"MarshalBinaryTo", id.MarshalBinaryTo, ulid.ErrBufferSize},
 		{"MarshalTextTo", id.MarshalTextTo, ulid.ErrBufferSize},
+		{"MarshalJSONTo", id.MarshalJSONTo, ulid.ErrBufferSize},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got, want := tc.fn([]byte{}), tc.err; got != want {
@@ -266,6 +268,27 @@ func TestEncoding(t *testing.T) {
 
 	if err := quick.Check(prop, &quick.Config{MaxCount: 1e5}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestJSON(t *testing.T) {
+	t.Parallel()
+
+	origin := ulid.MustNewDefault(time.Now())
+
+	marshaled, err := origin.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var unmarshaled ulid.ULID
+	err = unmarshaled.UnmarshalJSON(marshaled)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if origin.Compare(unmarshaled) != 0 {
+		t.Fatalf("origin: %s != unmarshaled: %s", origin.String(), unmarshaled.String())
 	}
 }
 

@@ -306,6 +306,32 @@ func (id *ULID) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
+// MarshalJSON implements the json.Marshaler interface by
+// returning the json encoded ULID.
+func (id ULID) MarshalJSON() ([]byte, error) {
+	ulid := make([]byte, EncodedSize)
+	return ulid, id.MarshalJSONTo(ulid)
+}
+
+// MarshalJSONTo writes the ULID as a json to the given buffer.
+// ErrBufferSize is returned when the len(dst) != 26.
+func (id ULID) MarshalJSONTo(dst []byte) error {
+	return id.MarshalTextTo(dst)
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface by
+// copying the passed data and converting it to a ULID. ErrDataSize is
+// returned if the data length is different from ULID length.
+func (id *ULID) UnmarshalJSON(data []byte) error {
+	if len(data) != EncodedSize {
+		return ErrDataSize
+	}
+
+	var err error
+	*id, err = Parse(string(data))
+	return err
+}
+
 // Encoding is the base 32 encoding alphabet used in ULID strings.
 const Encoding = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
