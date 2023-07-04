@@ -61,7 +61,7 @@ and uses a source of entropy which is process-global,
 [monotonic](https://pkg.go.dev/github.com/oklog/ulid/v2#LockedMonotonicReader).
 
 ```go
-println(ulid.Make())
+fmt.Println(ulid.Make())
 // 01G65Z755AFWAKHE12NY0CQ9FH
 ```
 
@@ -71,7 +71,7 @@ More advanced use cases should utilize
 ```go
 entropy := rand.New(rand.NewSource(time.Now().UnixNano()))
 ms := ulid.Timestamp(time.Now())
-println(ulid.New(ms, entropy))
+fmt.Println(ulid.New(ms, entropy))
 // 01G65Z755AFWAKHE12NY0CQ9FH
 ```
 
