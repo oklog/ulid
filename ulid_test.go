@@ -393,7 +393,6 @@ func TestTime(t *testing.T) {
 		t.Errorf("difference between original and recovered time (%d) greater"+
 			"than a millisecond", diff)
 	}
-
 }
 
 func TestTimestampRoundTrips(t *testing.T) {
@@ -430,6 +429,27 @@ func TestULIDTime(t *testing.T) {
 
 		if got, want := id.Time(), ms; got != want {
 			t.Fatalf("\nfor %v:\ngot  %v\nwant %v", id, got, want)
+		}
+	}
+}
+
+func TestULIDTimestamp(t *testing.T) {
+	t.Parallel()
+
+	{
+		id := ulid.Make()
+		ts := id.Timestamp()
+		tt := ulid.Time(id.Time())
+		if ts != tt {
+			t.Errorf("id.Timestamp() %s != ulid.Time(id.Time()) %s", ts, tt)
+		}
+	}
+
+	{
+		now := time.Now()
+		id := ulid.MustNew(ulid.Timestamp(now), ulid.DefaultEntropy())
+		if want, have := now.Truncate(time.Millisecond), id.Timestamp(); want != have {
+			t.Errorf("Timestamp: want %v, have %v", want, have)
 		}
 	}
 }

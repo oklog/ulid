@@ -411,6 +411,11 @@ func (id ULID) Time() uint64 {
 		uint64(id[1])<<32 | uint64(id[0])<<40
 }
 
+// Timestamp returns the time encoded in the ULID as a time.Time.
+func (id ULID) Timestamp() time.Time {
+	return Time(id.Time())
+}
+
 // maxTime is the maximum Unix time in milliseconds that can be
 // represented in a ULID.
 var maxTime = ULID{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}.Time()
