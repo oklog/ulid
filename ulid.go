@@ -427,8 +427,8 @@ func MaxTime() uint64 { return maxTime }
 // Now is a convenience function that returns the current
 // UTC time in Unix milliseconds. Equivalent to:
 //
-//	Timestamp(time.Now().UTC())
-func Now() uint64 { return Timestamp(time.Now().UTC()) }
+//	Timestamp(time.Now())
+func Now() uint64 { return Timestamp(time.Now()) }
 
 // Timestamp converts a time.Time to Unix milliseconds.
 //
