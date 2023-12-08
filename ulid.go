@@ -48,6 +48,8 @@ A ULID is a 16 byte Universally Unique Lexicographically Sortable Identifier
 type ULID [16]byte
 
 var (
+	Nil ULID // empty ULID, all zeros
+
 	// ErrDataSize is returned when parsing or unmarshaling ULIDs with the wrong
 	// data size.
 	ErrDataSize = errors.New("ulid: bad data size when unmarshaling")
