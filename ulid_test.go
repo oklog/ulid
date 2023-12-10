@@ -60,13 +60,13 @@ func TestNew(t *testing.T) {
 	})
 }
 
-func TestNil(t *testing.T) {
+func TestIsZero(t *testing.T) {
 	t.Parallel()
 
 	var id ulid.ULID
 
-	if id != ulid.Nil {
-		t.Fatalf("%q != %q", id, ulid.Nil)
+	if !id.IsZero() {
+		t.Fatalf("IsZero: got %v, want true", id.IsZero())
 	}
 }
 

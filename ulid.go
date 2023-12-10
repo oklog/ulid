@@ -48,7 +48,7 @@ A ULID is a 16 byte Universally Unique Lexicographically Sortable Identifier
 type ULID [16]byte
 
 var (
-	Nil ULID // empty ULID, all zeros
+	Zero ULID // empty ULID, all zeros
 
 	// ErrDataSize is returned when parsing or unmarshaling ULIDs with the wrong
 	// data size.
@@ -538,6 +538,10 @@ func (id *ULID) Scan(src interface{}) error {
 //	db.Exec("...", invalidZeroValuer(id))
 func (id ULID) Value() (driver.Value, error) {
 	return id.MarshalBinary()
+}
+
+func (id ULID) IsZero() bool {
+	return id == Zero
 }
 
 // Monotonic returns a source of entropy that yields strictly increasing entropy
