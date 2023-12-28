@@ -177,33 +177,7 @@ func parse(v []byte, strict bool, id *ULID) error {
 
 	// Check if all the characters in a base32 encoded ULID are part of the
 	// expected base32 character set.
-	if strict &&
-		(dec[v[0]] == 0xFF ||
-			dec[v[1]] == 0xFF ||
-			dec[v[2]] == 0xFF ||
-			dec[v[3]] == 0xFF ||
-			dec[v[4]] == 0xFF ||
-			dec[v[5]] == 0xFF ||
-			dec[v[6]] == 0xFF ||
-			dec[v[7]] == 0xFF ||
-			dec[v[8]] == 0xFF ||
-			dec[v[9]] == 0xFF ||
-			dec[v[10]] == 0xFF ||
-			dec[v[11]] == 0xFF ||
-			dec[v[12]] == 0xFF ||
-			dec[v[13]] == 0xFF ||
-			dec[v[14]] == 0xFF ||
-			dec[v[15]] == 0xFF ||
-			dec[v[16]] == 0xFF ||
-			dec[v[17]] == 0xFF ||
-			dec[v[18]] == 0xFF ||
-			dec[v[19]] == 0xFF ||
-			dec[v[20]] == 0xFF ||
-			dec[v[21]] == 0xFF ||
-			dec[v[22]] == 0xFF ||
-			dec[v[23]] == 0xFF ||
-			dec[v[24]] == 0xFF ||
-			dec[v[25]] == 0xFF) {
+	if strict && isNotBase32CharacterSet(v, dec) {
 		return ErrInvalidCharacters
 	}
 
@@ -240,6 +214,18 @@ func parse(v []byte, strict bool, id *ULID) error {
 	(*id)[15] = (dec[v[24]] << 5) | dec[v[25]]
 
 	return nil
+}
+
+func isNotBase32CharacterSet(v []byte, dec [256]byte) bool {
+	count := 25
+
+	for index := 0; index <= count; index++ {
+		if dec[v[index]] == 0xFF {
+			return true
+		}
+	}
+
+	return false
 }
 
 // MustParse is a convenience function equivalent to Parse that panics on failure
