@@ -75,6 +75,9 @@ var (
 	// ErrScanValue is returned when the value passed to scan cannot be unmarshaled
 	// into the ULID.
 	ErrScanValue = errors.New("ulid: source value must be a string or byte slice")
+
+	// Nil is an empty ULID, all zeros, useful when comparing nil ULIDs
+	Nil ULID
 )
 
 // MonotonicReader is an interface that should yield monotonically increasing
@@ -414,6 +417,11 @@ func (id ULID) Time() uint64 {
 // Timestamp returns the time encoded in the ULID as a time.Time.
 func (id ULID) Timestamp() time.Time {
 	return Time(id.Time())
+}
+
+// IsZero returns whether the ULID is a zero-value, ie ulid.Nil.
+func (id ULID) IsZero() bool {
+	return bytes.Equal(id[:], Nil[:])
 }
 
 // maxTime is the maximum Unix time in milliseconds that can be
