@@ -28,6 +28,7 @@ func main() {
 		local  = fs.BoolLong("local", 'l', "when parsing, show local time instead of UTC")
 		quick  = fs.BoolLong("quick", 'q', "when generating, use non-crypto-grade entropy")
 		zero   = fs.BoolLong("zero", 'z', "when generating, fix entropy to all-zeroes")
+		asUUID = fs.BoolLong("uuid", 'u', "when parsing or generating, print as UUID string")
 		help   = fs.BoolLong("help", 'h', "print this help text")
 	)
 	if err := fs.Getopt(os.Args, nil); err != nil {
@@ -56,13 +57,13 @@ func main() {
 
 	switch args := fs.Args(); len(args) {
 	case 0:
-		generate(*quick, *zero)
+		generate(*quick, *zero, *asUUID)
 	default:
-		parse(args[0], *local, formatFunc)
+		parse(args[0], *local, *asUUID, formatFunc)
 	}
 }
 
-func generate(quick, zero bool) {
+func generate(quick, zero, asUUID bool) {
 	entropy := cryptorand.Reader
 	if quick {
 		seed := time.Now().UnixNano()
@@ -79,14 +80,19 @@ func generate(quick, zero bool) {
 		os.Exit(1)
 	}
 
-	fmt.Fprintf(os.Stdout, "%s\n", id)
+	printID(id, asUUID)
 }
 
-func parse(s string, local bool, f func(time.Time) string) {
+func parse(s string, local, asUUID bool, f func(time.Time) string) {
 	id, err := ulid.Parse(s)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
+	}
+
+	if asUUID {
+		printID(id, true)
+		return
 	}
 
 	t := ulid.Time(id.Time())
@@ -103,4 +109,12 @@ func (zeroReader) Read(p []byte) (int, error) {
 		p[i] = 0
 	}
 	return len(p), nil
+}
+
+func printID(id ulid.ULID, asUUID bool) {
+	if !asUUID {
+		fmt.Fprintf(os.Stdout, "%s\n", id)
+		return
+	}
+	fmt.Fprintf(os.Stdout, "%s\n", id.UUIDString())
 }
