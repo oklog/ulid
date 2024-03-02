@@ -834,10 +834,21 @@ func BenchmarkNow(b *testing.B) {
 
 func BenchmarkTimestamp(b *testing.B) {
 	now := time.Now()
-	b.SetBytes(8)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_ = ulid.Timestamp(now)
+	for _, tc := range []struct {
+		name   string
+		tsfunc func() time.Time
+	}{
+		{"WithLocal", func() time.Time { return now }},
+		{"WithUTC", func() time.Time { return now.UTC() }}, //nolint:gocritic // keep lambda for fair comparison
+	} {
+		tc := tc
+		b.Run(tc.name, func(b *testing.B) {
+			b.SetBytes(8)
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				_ = ulid.Timestamp(tc.tsfunc())
+			}
+		})
 	}
 }
 
