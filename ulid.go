@@ -176,6 +176,23 @@ func parse(v []byte, strict bool, id *ULID) error {
 	}
 
 	// Use an optimized unrolled loop to decode a base32 ULID.
+	// The MSB(Most Significant Bit) is reserved for detecting invalid indexes.
+	//
+	// For example, in normal case, the bit layout of uint64(dec[v[0]])<<45 becomes:
+	//
+	//     | 63 | 62 | 61 | 60 | 59 | 58 | 57 | 56 | 55 | 54 | 53 | 52 | 51 | 50 | 49 | 48 | 47 | 46 | 45 | 44 | ... |
+	//     |----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|-----|
+	//     |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  0 |  x |  x |  x |  x |  x |  0 | ... |
+	//
+	// and the MSB is set to 0.
+	//
+	// If the character is not part of the base32 character set, the layout becomes:
+	//
+	//     | 63 | 62 | 61 | 60 | 59 | 58 | 57 | 56 | 55 | 54 | 53 | 52 | 51 | 50 | 49 | 48 | 47 | 46 | 45 | 44 | ... |
+	//     |----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|----|-----|
+	//     |  1 |  1 |  1 |  1 |  1 |  1 |  1 |  1 |  1 |  1 |  1 |  1 |  1 |  1 |  1 |  1 |  1 |  1 |  1 |  0 | ... |
+	//
+	// and the MSB is set to 1.
 	h := uint64(dec[v[0]])<<45 |
 		uint64(dec[v[1]])<<40 |
 		uint64(dec[v[2]])<<35 |
@@ -361,7 +378,9 @@ func (id ULID) MarshalTextTo(dst []byte) error {
 }
 
 // Byte to index table for O(1) lookups when unmarshaling.
-// We use 0xFF as sentinel value for invalid indexes.
+// We use -1 (all bits are set to 1) as sentinel value for invalid indexes.
+// The reason for using -1 is that, even when cast, it does not lose the property that all bits are set to 1.
+// e.g. uint64(int8(-1)) == 0xFFFFFFFFFFFFFFFF
 var dec = [...]int8{
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
 	-1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
