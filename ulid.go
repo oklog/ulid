@@ -497,6 +497,12 @@ func (id *ULID) Scan(src interface{}) error {
 	case string:
 		return id.UnmarshalText([]byte(x))
 	case []byte:
+		// copied from: https://github.com/google/uuid/blob/6e10cd1027e225e3ad7bfcc13c896abd165b02ef/sql.go#L40-L44
+		// assumes a simple slice of bytes if 16 bytes
+		// otherwise attempts to parse
+		if len(x) != 16 {
+			return id.UnmarshalText(x)
+		}
 		return id.UnmarshalBinary(x)
 	}
 

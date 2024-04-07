@@ -554,6 +554,7 @@ func TestScan(t *testing.T) {
 		{"bytes", id[:], id, nil},
 		{"nil", nil, ulid.ULID{}, nil},
 		{"other", 44, ulid.ULID{}, ulid.ErrScanValue},
+		{"string_in_bytes", []byte(id.String()), id, nil},
 	} {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
