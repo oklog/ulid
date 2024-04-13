@@ -419,7 +419,7 @@ func (id ULID) Timestamp() time.Time {
 	return Time(id.Time())
 }
 
-// IsZero returns whether the ULID is a zero-value, ie ulid.Nil.
+// IsZero returns true if the ULID is a zero-value ULID, i.e. ulid.Zero.
 func (id ULID) IsZero() bool {
 	return bytes.Equal(id[:], Nil[:])
 }
