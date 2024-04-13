@@ -459,7 +459,7 @@ func TestZero(t *testing.T) {
 
 	var id ulid.ULID
 	if ok := id.IsZero(); !ok {
-		t.Error(".IsZero: must return true for empty ULIDs, have false")
+		t.Error(".IsZero: must return true for zero-value ULIDs, have false")
 	}
 
 	id = ulid.MustNew(ulid.Now(), ulid.DefaultEntropy())
