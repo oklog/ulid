@@ -454,6 +454,20 @@ func TestULIDTimestamp(t *testing.T) {
 	}
 }
 
+func TestZero(t *testing.T) {
+	t.Parallel()
+
+	var id ulid.ULID
+	if ok := id.IsZero(); !ok {
+		t.Error(".IsZero: must return true for zero-value ULIDs, have false")
+	}
+
+	id = ulid.MustNew(ulid.Now(), ulid.DefaultEntropy())
+	if ok := id.IsZero(); ok {
+		t.Error(".IsZero: must return false for non-zero-value ULIDs, have true")
+	}
+}
+
 func TestEntropy(t *testing.T) {
 	t.Parallel()
 
