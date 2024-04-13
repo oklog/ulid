@@ -76,8 +76,8 @@ var (
 	// into the ULID.
 	ErrScanValue = errors.New("ulid: source value must be a string or byte slice")
 
-	// Nil is an empty ULID, all zeros, useful when comparing nil ULIDs
-	Nil ULID
+	// Zero is a zero-value ULID.
+	Zero ULID
 )
 
 // MonotonicReader is an interface that should yield monotonically increasing
