@@ -421,7 +421,7 @@ func (id ULID) Timestamp() time.Time {
 
 // IsZero returns true if the ULID is a zero-value ULID, i.e. ulid.Zero.
 func (id ULID) IsZero() bool {
-	return bytes.Equal(id[:], Nil[:])
+	return id.Compare(Zero) == 0
 }
 
 // maxTime is the maximum Unix time in milliseconds that can be
