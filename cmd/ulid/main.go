@@ -83,7 +83,7 @@ func generate(quick, zero bool) {
 }
 
 func parse(s string, local bool, f func(time.Time) string) {
-	id, err := ulid.Parse(s)
+	id, err := ulid.ParseStrict(s)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
