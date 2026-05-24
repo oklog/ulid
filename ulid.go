@@ -547,7 +547,7 @@ func (id ULID) Value() (driver.Value, error) {
 }
 
 // Monotonic returns a source of entropy that yields strictly increasing entropy
-// bytes, to a limit governeed by the `inc` parameter.
+// bytes, to a limit governed by the `inc` parameter.
 //
 // Specifically, calls to MonotonicRead within the same ULID timestamp return
 // entropy incremented by a random number between 1 and `inc` inclusive. If an
