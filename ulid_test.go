@@ -566,6 +566,7 @@ func TestScan(t *testing.T) {
 	}{
 		{"string", id.String(), id, nil},
 		{"bytes", id[:], id, nil},
+		{"text-as-bytes", []byte(id.String()), id, nil},
 		{"nil", nil, ulid.ULID{}, nil},
 		{"other", 44, ulid.ULID{}, ulid.ErrScanValue},
 	} {
