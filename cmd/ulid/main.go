@@ -2,8 +2,9 @@ package main
 
 import (
 	cryptorand "crypto/rand"
+	"encoding/binary"
 	"fmt"
-	mathrand "math/rand"
+	mathrand "math/rand/v2"
 	"os"
 	"strings"
 	"time"
@@ -65,9 +66,9 @@ func main() {
 func generate(quick, zero bool) {
 	entropy := cryptorand.Reader
 	if quick {
-		seed := time.Now().UnixNano()
-		source := mathrand.NewSource(seed)
-		entropy = mathrand.New(source)
+		seed := [32]byte{}
+		binary.LittleEndian.PutUint64(seed[:8], uint64(time.Now().UnixNano()))
+		entropy = mathrand.NewChaCha8(seed)
 	}
 	if zero {
 		entropy = zeroReader{}

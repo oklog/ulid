@@ -57,7 +57,7 @@ performance, cryptographic security, etc., use the
 [ulid.Make](https://pkg.go.dev/github.com/oklog/ulid/v2#Make) helper function.
 This function calls [time.Now](https://pkg.go.dev/time#Now) to get a timestamp,
 and uses a source of entropy which is process-global,
-[pseudo-random](https://pkg.go.dev/math/rand), and
+[pseudo-random](https://pkg.go.dev/math/rand/v2), and
 [monotonic](https://pkg.go.dev/github.com/oklog/ulid/v2#LockedMonotonicReader).
 
 ```go
@@ -69,7 +69,11 @@ More advanced use cases should utilize
 [ulid.New](https://pkg.go.dev/github.com/oklog/ulid/v2#New).
 
 ```go
-entropy := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+seed := [32]byte{}
+binary.LittleEndian.PutUint64(seed[:8], uint64(time.Now().UnixNano()))
+entropy := rand.NewChaCha8(seed) // This uses math/rand/v2.
+
 ms := ulid.Timestamp(time.Now())
 fmt.Println(ulid.New(ms, entropy))
 // 01G65Z755AFWAKHE12NY0CQ9FH
@@ -77,7 +81,7 @@ fmt.Println(ulid.New(ms, entropy))
 
 Care should be taken when providing a source of entropy.
 
-The above example utilizes [math/rand.Rand](https://pkg.go.dev/math/rand#Rand),
+The above example utilizes [math/rand/v2.Rand](https://pkg.go.dev/math/rand/v2#Rand),
 which is not safe for concurrent use by multiple goroutines. Consider
 alternatives such as
 [x/exp/rand](https://pkg.go.dev/golang.org/x/exp/rand#LockedSource).

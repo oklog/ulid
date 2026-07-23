@@ -16,10 +16,11 @@ package ulid_test
 import (
 	"bytes"
 	crand "crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"io"
 	"math"
-	"math/rand"
+	"math/rand/v2"
 	"strings"
 	"testing"
 	"testing/iotest"
@@ -31,9 +32,11 @@ import (
 
 func ExampleULID() {
 	t := time.Unix(1000000, 0)
-	entropy := ulid.Monotonic(rand.New(rand.NewSource(t.UnixNano())), 0)
+	rng := createChaCha8RNG(t)
+
+	entropy := ulid.Monotonic(rng, 0)
 	fmt.Println(ulid.MustNew(ulid.Timestamp(t), entropy))
-	// Output: 0000XSNJG0MQJHBF4QX1EFD6Y3
+	// Output: 0000XSNJG02VZD8JHMTREXTNAH
 }
 
 func TestNew(t *testing.T) {
@@ -418,9 +421,8 @@ func TestULIDTime(t *testing.T) {
 		t.Errorf("got err %v, want %v", got, want)
 	}
 
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	for i := 0; i < 1e6; i++ {
-		ms := uint64(rng.Int63n(int64(maxTime)))
+		ms := uint64(rand.Int64N(int64(maxTime)))
 
 		var id ulid.ULID
 		if err := id.SetTime(ms); err != nil {
@@ -588,13 +590,12 @@ func TestScan(t *testing.T) {
 }
 
 func TestMonotonic(t *testing.T) {
-	now := ulid.Now()
 	for _, e := range []struct {
 		name string
 		mk   func() io.Reader
 	}{
 		{"cryptorand", func() io.Reader { return crand.Reader }},
-		{"mathrand", func() io.Reader { return rand.New(rand.NewSource(int64(now))) }},
+		{"mathrand", func() io.Reader { return createChaCha8RNG(time.Now()) }},
 	} {
 		for _, inc := range []uint64{
 			0,
@@ -656,7 +657,7 @@ func TestMonotonicSafe(t *testing.T) {
 	t.Parallel()
 
 	var (
-		rng  = rand.New(rand.NewSource(time.Now().UnixNano()))
+		rng  = createChaCha8RNG(time.Now())
 		safe = &ulid.LockedMonotonicReader{MonotonicReader: ulid.Monotonic(rng, 0)}
 		t0   = ulid.Timestamp(time.Now())
 	)
@@ -690,13 +691,19 @@ func TestMonotonicSafe(t *testing.T) {
 
 func TestULID_Bytes(t *testing.T) {
 	tt := time.Unix(1000000, 0)
-	entropy := ulid.Monotonic(rand.New(rand.NewSource(tt.UnixNano())), 0)
+	entropy := ulid.Monotonic(createChaCha8RNG(tt), 0)
 	id := ulid.MustNew(ulid.Timestamp(tt), entropy)
 	bid := id.Bytes()
 	bid[len(bid)-1]++
 	if bytes.Equal(id.Bytes(), bid) {
 		t.Error("Bytes() returned a reference to ulid underlying array!")
 	}
+}
+
+func createChaCha8RNG(t time.Time) *rand.ChaCha8 {
+	seed := [32]byte{}
+	binary.LittleEndian.PutUint64(seed[:8], uint64(t.UnixNano()))
+	return rand.NewChaCha8(seed)
 }
 
 func BenchmarkNew(b *testing.B) {
@@ -715,7 +722,7 @@ func benchmarkMakeULID(b *testing.B, f func(uint64, io.Reader)) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(ulid.ULID{})))
 
-	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+	rng := createChaCha8RNG(time.Now())
 
 	for _, tc := range []struct {
 		name       string
@@ -769,7 +776,7 @@ func BenchmarkMustParse(b *testing.B) {
 }
 
 func BenchmarkString(b *testing.B) {
-	entropy := rand.New(rand.NewSource(time.Now().UnixNano()))
+	entropy := createChaCha8RNG(time.Now())
 	id := ulid.MustNew(123456, entropy)
 	b.SetBytes(int64(len(id)))
 	b.ResetTimer()
@@ -779,7 +786,7 @@ func BenchmarkString(b *testing.B) {
 }
 
 func BenchmarkMarshal(b *testing.B) {
-	entropy := rand.New(rand.NewSource(time.Now().UnixNano()))
+	entropy := createChaCha8RNG(time.Now())
 	buf := make([]byte, ulid.EncodedSize)
 	id := ulid.MustNew(123456, entropy)
 
