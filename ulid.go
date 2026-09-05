@@ -641,7 +641,7 @@ func (m *MonotonicEntropy) increment() error {
 	return nil
 }
 
-// random returns a uniform random value in [1, m.inc), reading entropy
+// random returns a uniform random value in [1, m.inc], reading entropy
 // from m.Reader. When m.inc == 0 || m.inc == 1, it returns 1.
 // Adapted from: https://golang.org/pkg/crypto/rand/#Int
 func (m *MonotonicEntropy) random() (inc uint64, err error) {
@@ -651,7 +651,7 @@ func (m *MonotonicEntropy) random() (inc uint64, err error) {
 
 	// Fast path for using a underlying rand.Rand directly.
 	if m.rng != nil {
-		// Range: [1, m.inc)
+		// Range: [1, m.inc]
 		return 1 + uint64(m.rng.Int63n(int64(m.inc))), nil
 	}
 
@@ -667,7 +667,7 @@ func (m *MonotonicEntropy) random() (inc uint64, err error) {
 		msbitLen = 8
 	}
 
-	for inc == 0 || inc >= m.inc {
+	for {
 		if _, err = io.ReadFull(m.Reader, m.rand[:byteLen]); err != nil {
 			return 0, err
 		}
@@ -688,9 +688,14 @@ func (m *MonotonicEntropy) random() (inc uint64, err error) {
 		case 5, 6, 7, 8:
 			inc = uint64(binary.LittleEndian.Uint64(m.rand[:8]))
 		}
+
+		// inc may exceed m.inc; redraw rather than bias the low end of the range.
+		if inc < m.inc {
+			break
+		}
 	}
 
-	// Range: [1, m.inc)
+	// Range: [1, m.inc]
 	return 1 + inc, nil
 }
 

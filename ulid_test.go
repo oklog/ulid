@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/big"
 	"math/rand"
 	"strings"
 	"testing"
@@ -626,6 +627,49 @@ func TestMonotonic(t *testing.T) {
 				}
 			})
 		}
+	}
+}
+
+// Regression test: random() rejected a masked draw of 0, making an
+// increment of 1 unreachable and inc == 2 fully deterministic. The reader
+// yields an exact byte sequence so the result does not depend on chance.
+func TestMonotonicIncrementRange(t *testing.T) {
+	t.Parallel()
+
+	// The first 10 bytes seed the first ULID; the rest are consumed by random().
+	seed := append([]byte{0x01}, bytes.Repeat([]byte{0x00}, 9)...)
+	draws := []byte{0x00, 0x01, 0x02, 0x03, 0x00}
+	reader := bytes.NewReader(append(seed, draws...))
+
+	entropy := ulid.Monotonic(reader, 2)
+
+	prev, err := ulid.New(123, entropy)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// masked 0 and 1 are accepted as increments 1 and 2; 2 and 3 are redrawn
+	wantDeltas := []uint64{1, 2, 1}
+
+	for i, want := range wantDeltas {
+		next, err := ulid.New(123, entropy)
+		if err != nil {
+			t.Fatalf("draw %d: %v", i, err)
+		}
+
+		if prev.Compare(next) >= 0 {
+			t.Fatalf("draw %d: monotonicity violated: prev=%v next=%v", i, prev, next)
+		}
+
+		delta := new(big.Int).Sub(
+			new(big.Int).SetBytes(next.Entropy()),
+			new(big.Int).SetBytes(prev.Entropy()),
+		).Uint64()
+		if delta != want {
+			t.Fatalf("draw %d: delta = %d, want %d", i, delta, want)
+		}
+
+		prev = next
 	}
 }
 
