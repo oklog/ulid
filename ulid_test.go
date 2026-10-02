@@ -555,6 +555,16 @@ func TestOverflowHandling(t *testing.T) {
 	}
 }
 
+func TestScanNilClears(t *testing.T) {
+	id := ulid.MustParse("01ARYZ6S410000000000000000")
+	if err := id.Scan(nil); err != nil {
+		t.Fatal(err)
+	}
+	if !id.IsZero() {
+		t.Fatalf("got %s, want zero", id)
+	}
+}
+
 func TestScan(t *testing.T) {
 	id := ulid.MustNew(123, crand.Reader)
 
