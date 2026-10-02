@@ -501,6 +501,7 @@ func (id ULID) Compare(other ULID) int {
 func (id *ULID) Scan(src interface{}) error {
 	switch x := src.(type) {
 	case nil:
+		*id = Zero
 		return nil
 	case string:
 		return id.UnmarshalText([]byte(x))
