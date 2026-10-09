@@ -121,7 +121,7 @@ func TestMustParse(t *testing.T) {
 		{"MustParse", ulid.MustParse},
 		{"MustParseStrict", ulid.MustParseStrict},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tc.name+"/ErrDataSize", func(t *testing.T) {
 			defer func() {
 				if got, want := recover(), ulid.ErrDataSize; got != want {
 					t.Errorf("got panic %v, want %v", got, want)
@@ -130,6 +130,14 @@ func TestMustParse(t *testing.T) {
 			_ = tc.fn("")
 		})
 
+		t.Run(tc.name+"/ErrInvalidCharacters", func(t *testing.T) {
+			defer func() {
+				if got, want := recover(), ulid.ErrInvalidCharacters; got != want {
+					t.Errorf("got panic %v, want %v", got, want)
+				}
+			}()
+			_ = tc.fn("0LLLLLLLLLLLLLLLLLLLLLLLLL")
+		})
 	}
 }
 
@@ -228,11 +236,68 @@ func TestParseStrictInvalidCharacters(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := ulid.ParseStrict(tt.input)
-			if err != ulid.ErrInvalidCharacters {
+			if _, err := ulid.ParseStrict(tt.input); err != ulid.ErrInvalidCharacters {
+				t.Errorf("ParseStrict(%q): got err %v, want %v", tt.input, err, ulid.ErrInvalidCharacters)
+			}
+			if _, err := ulid.Parse(tt.input); err != ulid.ErrInvalidCharacters {
 				t.Errorf("Parse(%q): got err %v, want %v", tt.input, err, ulid.ErrInvalidCharacters)
 			}
 		})
+	}
+}
+
+func TestParseInvalidCharacters(t *testing.T) {
+	t.Parallel()
+
+	// Crockford Base32 excludes I, L, O, U (and lowercase i, l, o, u).
+	// Strings containing them must be rejected with ErrInvalidCharacters.
+	issue69Cases := []struct {
+		name  string
+		input string
+	}{
+		{"uppercase L", "0LLLLLLLLLLLLLLLLLLLLLLLLL"},
+		{"uppercase U", "0UUUUUUUUUUUUUUUUUUUUUUUUU"},
+		{"uppercase O", "0OOOOOOOOOOOOOOOOOOOOOOOOO"},
+		{"uppercase I", "0IIIIIIIIIIIIIIIIIIIIIIIII"},
+		{"lowercase l", "0lllllllllllllllllllllllll"},
+		{"lowercase u", "0uuuuuuuuuuuuuuuuuuuuuuuuu"},
+		{"lowercase o", "0ooooooooooooooooooooooooo"},
+		{"lowercase i", "0iiiiiiiiiiiiiiiiiiiiiiiii"},
+		{"first char I", "I0000000000000000000000000"},
+		{"first char L", "L0000000000000000000000000"},
+		{"first char O", "O0000000000000000000000000"},
+		{"first char U", "U0000000000000000000000000"},
+		{"symbol space", "0000XSNJG0MQJHBF4QX1EFD6Y "},
+		{"symbol hyphen", "0000XSNJG0MQ-HBF4QX1EFD6Y3"},
+		{"symbol at", "0000XSNJG0MQ@HBF4QX1EFD6Y3"},
+	}
+
+	for _, tc := range issue69Cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := ulid.Parse(tc.input); err != ulid.ErrInvalidCharacters {
+				t.Errorf("Parse(%q): got err %v, want %v", tc.input, err, ulid.ErrInvalidCharacters)
+			}
+			if _, err := ulid.ParseStrict(tc.input); err != ulid.ErrInvalidCharacters {
+				t.Errorf("ParseStrict(%q): got err %v, want %v", tc.input, err, ulid.ErrInvalidCharacters)
+			}
+
+			var id ulid.ULID
+			if err := id.UnmarshalText([]byte(tc.input)); err != ulid.ErrInvalidCharacters {
+				t.Errorf("UnmarshalText(%q): got err %v, want %v", tc.input, err, ulid.ErrInvalidCharacters)
+			}
+		})
+	}
+
+	// Verify all positions 0..25 reject excluded Crockford Base32 characters.
+	base := "0000XSNJG0MQJHBF4QX1EFD6Y3"
+	excluded := []byte{'I', 'L', 'O', 'U', 'i', 'l', 'o', 'u'}
+	for i := 0; i < ulid.EncodedSize; i++ {
+		for _, ch := range excluded {
+			input := base[:i] + string(ch) + base[i+1:]
+			if _, err := ulid.Parse(input); err != ulid.ErrInvalidCharacters {
+				t.Errorf("Parse(%q) at index %d: got err %v, want %v", input, i, err, ulid.ErrInvalidCharacters)
+			}
+		}
 	}
 }
 
@@ -324,8 +389,8 @@ func TestParseRobustness(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		if _, err := ulid.Parse(string(tc)); err != nil {
-			t.Error(err)
+		if _, err := ulid.Parse(string(tc)); err != ulid.ErrInvalidCharacters {
+			t.Errorf("got %v, want %v", err, ulid.ErrInvalidCharacters)
 		}
 	}
 
@@ -337,18 +402,8 @@ func TestParseRobustness(t *testing.T) {
 			}
 		}()
 
-		// quick.Check doesn't constrain input,
-		// so we need to do so artificially.
-		if s[0] > '7' {
-			s[0] %= '7'
-		}
-
-		var err error
-		if _, err = ulid.Parse(string(s[:])); err != nil {
-			t.Error(err)
-		}
-
-		return err == nil
+		_, _ = ulid.Parse(string(s[:]))
+		return true
 	}
 
 	err := quick.Check(prop, &quick.Config{MaxCount: 1e4})

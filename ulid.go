@@ -155,24 +155,22 @@ func Make() (id ULID) {
 // Parse parses an encoded ULID, returning an error in case of failure.
 //
 // ErrDataSize is returned if the len(ulid) is different from an encoded
-// ULID's length. Invalid encodings produce undefined ULIDs. For a version that
-// returns an error instead, see ParseStrict.
+// ULID's length. Invalid encodings return ErrInvalidCharacters.
 func Parse(ulid string) (id ULID, err error) {
-	return id, parse([]byte(ulid), false, &id)
+	return id, parse([]byte(ulid), &id)
 }
 
 // ParseStrict parses an encoded ULID, returning an error in case of failure.
 //
-// It is like Parse, but additionally validates that the parsed ULID consists
-// only of valid base32 characters. It is slightly slower than Parse.
+// It is equivalent to Parse.
 //
 // ErrDataSize is returned if the len(ulid) is different from an encoded
 // ULID's length. Invalid encodings return ErrInvalidCharacters.
 func ParseStrict(ulid string) (id ULID, err error) {
-	return id, parse([]byte(ulid), true, &id)
+	return Parse(ulid)
 }
 
-func parse(v []byte, strict bool, id *ULID) error {
+func parse(v []byte, id *ULID) error {
 	// Check if a base32 encoded ULID is the right length.
 	if len(v) != EncodedSize {
 		return ErrDataSize
@@ -180,33 +178,32 @@ func parse(v []byte, strict bool, id *ULID) error {
 
 	// Check if all the characters in a base32 encoded ULID are part of the
 	// expected base32 character set.
-	if strict &&
-		(dec[v[0]] == 0xFF ||
-			dec[v[1]] == 0xFF ||
-			dec[v[2]] == 0xFF ||
-			dec[v[3]] == 0xFF ||
-			dec[v[4]] == 0xFF ||
-			dec[v[5]] == 0xFF ||
-			dec[v[6]] == 0xFF ||
-			dec[v[7]] == 0xFF ||
-			dec[v[8]] == 0xFF ||
-			dec[v[9]] == 0xFF ||
-			dec[v[10]] == 0xFF ||
-			dec[v[11]] == 0xFF ||
-			dec[v[12]] == 0xFF ||
-			dec[v[13]] == 0xFF ||
-			dec[v[14]] == 0xFF ||
-			dec[v[15]] == 0xFF ||
-			dec[v[16]] == 0xFF ||
-			dec[v[17]] == 0xFF ||
-			dec[v[18]] == 0xFF ||
-			dec[v[19]] == 0xFF ||
-			dec[v[20]] == 0xFF ||
-			dec[v[21]] == 0xFF ||
-			dec[v[22]] == 0xFF ||
-			dec[v[23]] == 0xFF ||
-			dec[v[24]] == 0xFF ||
-			dec[v[25]] == 0xFF) {
+	if dec[v[0]] == 0xFF ||
+		dec[v[1]] == 0xFF ||
+		dec[v[2]] == 0xFF ||
+		dec[v[3]] == 0xFF ||
+		dec[v[4]] == 0xFF ||
+		dec[v[5]] == 0xFF ||
+		dec[v[6]] == 0xFF ||
+		dec[v[7]] == 0xFF ||
+		dec[v[8]] == 0xFF ||
+		dec[v[9]] == 0xFF ||
+		dec[v[10]] == 0xFF ||
+		dec[v[11]] == 0xFF ||
+		dec[v[12]] == 0xFF ||
+		dec[v[13]] == 0xFF ||
+		dec[v[14]] == 0xFF ||
+		dec[v[15]] == 0xFF ||
+		dec[v[16]] == 0xFF ||
+		dec[v[17]] == 0xFF ||
+		dec[v[18]] == 0xFF ||
+		dec[v[19]] == 0xFF ||
+		dec[v[20]] == 0xFF ||
+		dec[v[21]] == 0xFF ||
+		dec[v[22]] == 0xFF ||
+		dec[v[23]] == 0xFF ||
+		dec[v[24]] == 0xFF ||
+		dec[v[25]] == 0xFF {
 		return ErrInvalidCharacters
 	}
 
@@ -400,9 +397,9 @@ const EncodedSize = 26
 // parsing the data as string encoded ULID.
 //
 // ErrDataSize is returned if the len(v) is different from an encoded
-// ULID's length. Invalid encodings produce undefined ULIDs.
+// ULID's length. Invalid encodings return ErrInvalidCharacters.
 func (id *ULID) UnmarshalText(v []byte) error {
-	return parse(v, false, id)
+	return parse(v, id)
 }
 
 // Time returns the Unix time in milliseconds encoded in the ULID.
