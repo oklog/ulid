@@ -602,6 +602,12 @@ type LockedMonotonicReader struct {
 	MonotonicReader
 }
 
+// defaultEntropyReader keeps direct DefaultEntropy reads serialized with
+// MonotonicRead using the same mutex. LockedMonotonicReader's promoted Read
+// bypasses that lock, so Read belongs on this private adapter. Adding Read to
+// LockedMonotonicReader would break its value-form io.Reader compatibility:
+// a pointer receiver shadows the promoted Read for values, while a value
+// receiver would copy the mutex.
 type defaultEntropyReader struct {
 	*LockedMonotonicReader
 }
