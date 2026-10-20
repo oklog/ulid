@@ -20,6 +20,7 @@ import (
 	"io"
 	"math"
 	"math/rand"
+	"reflect"
 	"strings"
 	"testing"
 	"testing/iotest"
@@ -688,6 +689,69 @@ func TestMonotonicSafe(t *testing.T) {
 	}
 }
 
+func TestLockedMonotonicReaderValueImplementsReader(t *testing.T) {
+	readerType := reflect.TypeOf((*ulid.LockedMonotonicReader)(nil)).Elem()
+	readerInterface := reflect.TypeOf((*io.Reader)(nil)).Elem()
+	if !readerType.Implements(readerInterface) {
+		t.Fatalf("%v does not implement %v", readerType, readerInterface)
+	}
+}
+
+func TestDefaultEntropyMonotonicReader(t *testing.T) {
+	reader, ok := ulid.DefaultEntropy().(ulid.MonotonicReader)
+	if !ok {
+		t.Fatal("DefaultEntropy does not implement MonotonicReader")
+	}
+
+	const ms = 123
+	prev, err := ulid.New(ms, reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next, err := ulid.New(ms, reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if prev.Compare(next) >= 0 {
+		t.Fatalf("ULIDs are not increasing: %v >= %v", prev, next)
+	}
+}
+
+func TestDefaultEntropyConcurrentReadAndMake(t *testing.T) {
+	const iterations = 4096
+
+	start := make(chan struct{})
+	done := make(chan error, 2)
+
+	go func() {
+		<-start
+		entropy := ulid.DefaultEntropy()
+		var p [10]byte
+		for i := 0; i < iterations; i++ {
+			if _, err := io.ReadFull(entropy, p[:]); err != nil {
+				done <- err
+				return
+			}
+		}
+		done <- nil
+	}()
+
+	go func() {
+		<-start
+		for i := 0; i < iterations; i++ {
+			_ = ulid.Make()
+		}
+		done <- nil
+	}()
+
+	close(start)
+	for i := 0; i < 2; i++ {
+		if err := <-done; err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestULID_Bytes(t *testing.T) {
 	tt := time.Unix(1000000, 0)
 	entropy := ulid.Monotonic(rand.New(rand.NewSource(tt.UnixNano())), 0)
@@ -709,6 +773,20 @@ func BenchmarkMustNew(b *testing.B) {
 	benchmarkMakeULID(b, func(timestamp uint64, entropy io.Reader) {
 		_ = ulid.MustNew(timestamp, entropy)
 	})
+}
+
+func BenchmarkDefaultEntropyRead(b *testing.B) {
+	entropy := ulid.DefaultEntropy()
+	var p [10]byte
+
+	b.ReportAllocs()
+	b.SetBytes(int64(len(p)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := io.ReadFull(entropy, p[:]); err != nil {
+			b.Fatal(err)
+		}
+	}
 }
 
 func benchmarkMakeULID(b *testing.B, f func(uint64, io.Reader)) {

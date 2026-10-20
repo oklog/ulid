@@ -134,7 +134,9 @@ func MustNewDefault(t time.Time) ULID {
 
 var defaultEntropy = func() io.Reader {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return &LockedMonotonicReader{MonotonicReader: Monotonic(rng, 0)}
+	return &defaultEntropyReader{
+		LockedMonotonicReader: &LockedMonotonicReader{MonotonicReader: Monotonic(rng, 0)},
+	}
 }()
 
 // DefaultEntropy returns a thread-safe per process monotonically increasing
@@ -598,6 +600,17 @@ type rng interface{ Int63n(n int64) int64 }
 type LockedMonotonicReader struct {
 	mu sync.Mutex
 	MonotonicReader
+}
+
+type defaultEntropyReader struct {
+	*LockedMonotonicReader
+}
+
+// Read synchronizes direct reads with monotonic reads on the default source.
+func (r *defaultEntropyReader) Read(p []byte) (int, error) {
+	r.LockedMonotonicReader.mu.Lock()
+	defer r.LockedMonotonicReader.mu.Unlock()
+	return r.LockedMonotonicReader.MonotonicReader.Read(p)
 }
 
 // MonotonicRead synchronizes calls to the wrapped MonotonicReader.
