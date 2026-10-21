@@ -611,21 +611,23 @@ func (r *LockedMonotonicReader) MonotonicRead(ms uint64, p []byte) (err error) {
 // MonotonicEntropy is an opaque type that provides monotonic entropy.
 type MonotonicEntropy struct {
 	io.Reader
-	ms      uint64
-	inc     uint64
-	entropy uint80
-	rand    [8]byte
-	rng     rng
+	ms          uint64
+	initialized bool
+	inc         uint64
+	entropy     uint80
+	rand        [8]byte
+	rng         rng
 }
 
 // MonotonicRead implements the MonotonicReader interface.
 func (m *MonotonicEntropy) MonotonicRead(ms uint64, entropy []byte) (err error) {
-	if !m.entropy.IsZero() && m.ms == ms {
+	if m.initialized && m.ms == ms {
 		err = m.increment()
 		m.entropy.AppendTo(entropy)
 	} else if _, err = io.ReadFull(m.Reader, entropy); err == nil {
 		m.ms = ms
 		m.entropy.SetBytes(entropy)
+		m.initialized = true
 	}
 	return err
 }
