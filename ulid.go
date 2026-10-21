@@ -718,7 +718,3 @@ func (u *uint80) Add(n uint64) (overflow bool) {
 	}
 	return u.Hi < hi
 }
-
-func (u uint80) IsZero() bool {
-	return u.Hi == 0 && u.Lo == 0
-}
