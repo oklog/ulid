@@ -72,6 +72,100 @@ func TestMake(t *testing.T) {
 	}
 }
 
+// These tests temporarily replace process-wide entropy and must not run in
+// parallel.
+func TestMakeSharesDefaultEntropy(t *testing.T) {
+	defaultEntropy, ok := ulid.DefaultEntropy().(*ulid.LockedMonotonicReader)
+	if !ok {
+		t.Fatal("DefaultEntropy has unexpected type")
+	}
+
+	original := defaultEntropy.MonotonicReader
+	defaultEntropy.MonotonicReader = ulid.Monotonic(rand.New(rand.NewSource(1)), 1)
+	defer func() { defaultEntropy.MonotonicReader = original }()
+
+	id := ulid.Make()
+	next, err := ulid.New(id.Time(), ulid.DefaultEntropy())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := id
+	for i := len(want) - 1; i >= 6; i-- {
+		want[i]++
+		if want[i] != 0 {
+			break
+		}
+	}
+	if next != want {
+		t.Fatalf("New after Make: got %v, want %v", next, want)
+	}
+}
+
+func TestMakePreservesMonotonicReaderError(t *testing.T) {
+	defaultEntropy, ok := ulid.DefaultEntropy().(*ulid.LockedMonotonicReader)
+	if !ok {
+		t.Fatal("DefaultEntropy has unexpected type")
+	}
+
+	original := defaultEntropy.MonotonicReader
+	reader := &errorMonotonicReader{err: io.EOF}
+	defaultEntropy.MonotonicReader = reader
+	defer func() { defaultEntropy.MonotonicReader = original }()
+
+	var got interface{}
+	func() {
+		defer func() { got = recover() }()
+		_ = ulid.Make()
+	}()
+	if got != reader.err {
+		t.Fatalf("Make panic: got %v, want %v", got, reader.err)
+	}
+	if reader.monotonicCalls != 1 || reader.readCalls != 0 {
+		t.Fatalf("reader calls: MonotonicRead=%d Read=%d, want 1 and 0", reader.monotonicCalls, reader.readCalls)
+	}
+}
+
+func TestMakePreservesMonotonicEntropyError(t *testing.T) {
+	defaultEntropy, ok := ulid.DefaultEntropy().(*ulid.LockedMonotonicReader)
+	if !ok {
+		t.Fatal("DefaultEntropy has unexpected type")
+	}
+
+	original := defaultEntropy.MonotonicReader
+	reader := &errorMonotonicReader{err: io.EOF}
+	defaultEntropy.MonotonicReader = ulid.Monotonic(reader, 1)
+	defer func() { defaultEntropy.MonotonicReader = original }()
+
+	var got interface{}
+	func() {
+		defer func() { got = recover() }()
+		_ = ulid.Make()
+	}()
+	if got != reader.err {
+		t.Fatalf("Make panic: got %v, want %v", got, reader.err)
+	}
+	if reader.readCalls != 1 || reader.monotonicCalls != 0 {
+		t.Fatalf("reader calls: Read=%d MonotonicRead=%d, want 1 and 0", reader.readCalls, reader.monotonicCalls)
+	}
+}
+
+type errorMonotonicReader struct {
+	err            error
+	monotonicCalls int
+	readCalls      int
+}
+
+func (r *errorMonotonicReader) Read([]byte) (int, error) {
+	r.readCalls++
+	return 0, io.EOF
+}
+
+func (r *errorMonotonicReader) MonotonicRead(uint64, []byte) error {
+	r.monotonicCalls++
+	return r.err
+}
+
 func TestMustNew(t *testing.T) {
 	t.Parallel()
 
@@ -709,6 +803,15 @@ func BenchmarkMustNew(b *testing.B) {
 	benchmarkMakeULID(b, func(timestamp uint64, entropy io.Reader) {
 		_ = ulid.MustNew(timestamp, entropy)
 	})
+}
+
+var benchmarkMakeSink ulid.ULID
+
+func BenchmarkMake(b *testing.B) {
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		benchmarkMakeSink = ulid.Make()
+	}
 }
 
 func benchmarkMakeULID(b *testing.B, f func(uint64, io.Reader)) {
