@@ -774,6 +774,46 @@ func TestMonotonicOverflow(t *testing.T) {
 	}
 }
 
+func TestMonotonicOverflowState(t *testing.T) {
+	t.Parallel()
+
+	initial := bytes.Repeat([]byte{0xFF}, 10)
+	input := append(append([]byte(nil), initial...), make([]byte, 20)...)
+	entropy := ulid.Monotonic(bytes.NewReader(input), 1)
+
+	first, err := ulid.New(123, entropy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := first.Entropy(); !bytes.Equal(got, initial) {
+		t.Fatalf("initial entropy: got %x, want %x", got, initial)
+	}
+
+	for i := 0; i < 2; i++ {
+		if _, err := ulid.New(123, entropy); err != ulid.ErrMonotonicOverflow {
+			t.Fatalf("same-timestamp call %d after maximum entropy: got err %v, want %v", i+2, err, ulid.ErrMonotonicOverflow)
+		}
+	}
+
+	reset, err := ulid.New(124, entropy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := reset.Entropy(), make([]byte, 10); !bytes.Equal(got, want) {
+		t.Fatalf("entropy after timestamp change: got %x, want %x", got, want)
+	}
+
+	next, err := ulid.New(124, entropy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := make([]byte, 10)
+	want[len(want)-1] = 1
+	if got := next.Entropy(); !bytes.Equal(got, want) {
+		t.Fatalf("entropy after timestamp reseed: got %x, want %x", got, want)
+	}
+}
+
 func TestMonotonicSafe(t *testing.T) {
 	t.Parallel()
 

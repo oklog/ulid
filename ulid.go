@@ -622,8 +622,13 @@ type MonotonicEntropy struct {
 // MonotonicRead implements the MonotonicReader interface.
 func (m *MonotonicEntropy) MonotonicRead(ms uint64, entropy []byte) (err error) {
 	if m.initialized && m.ms == ms {
+		previous := m.entropy
 		err = m.increment()
 		m.entropy.AppendTo(entropy)
+		if err != nil {
+			// Keep a failed increment from replacing the last successful state.
+			m.entropy = previous
+		}
 	} else if _, err = io.ReadFull(m.Reader, entropy); err == nil {
 		m.ms = ms
 		m.entropy.SetBytes(entropy)
