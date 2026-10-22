@@ -20,7 +20,6 @@ import (
 	"io"
 	"math"
 	"math/rand"
-	"reflect"
 	"strings"
 	"testing"
 	"testing/iotest"
@@ -689,11 +688,71 @@ func TestMonotonicSafe(t *testing.T) {
 	}
 }
 
-func TestLockedMonotonicReaderValueImplementsReader(t *testing.T) {
-	readerType := reflect.TypeOf((*ulid.LockedMonotonicReader)(nil)).Elem()
-	readerInterface := reflect.TypeOf((*io.Reader)(nil)).Elem()
-	if !readerType.Implements(readerInterface) {
-		t.Fatalf("%v does not implement %v", readerType, readerInterface)
+func TestLockedMonotonicReaderRead(t *testing.T) {
+	t.Run("bytes", func(t *testing.T) {
+		want := []byte("entropy")
+		reader := &ulid.LockedMonotonicReader{MonotonicReader: ulid.Monotonic(bytes.NewReader(want), 0)}
+		got := make([]byte, len(want))
+
+		n, err := reader.Read(got)
+		if err != nil {
+			t.Fatalf("read entropy: %v", err)
+		}
+		if n != len(want) {
+			t.Fatalf("read %d bytes, want %d", n, len(want))
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("read %x, want %x", got, want)
+		}
+	})
+
+	t.Run("error", func(t *testing.T) {
+		wantErr := io.ErrUnexpectedEOF
+		reader := &ulid.LockedMonotonicReader{MonotonicReader: ulid.Monotonic(iotest.ErrReader(wantErr), 0)}
+		var p [10]byte
+
+		n, err := reader.Read(p[:])
+		if n != 0 || err != wantErr {
+			t.Fatalf("read returned (%d, %v), want (0, %v)", n, err, wantErr)
+		}
+	})
+}
+
+func TestLockedMonotonicReaderConcurrentReadAndNew(t *testing.T) {
+	const iterations = 4096
+
+	reader := &ulid.LockedMonotonicReader{MonotonicReader: ulid.Monotonic(rand.New(rand.NewSource(1)), 0)}
+	start := make(chan struct{})
+	done := make(chan error, 2)
+
+	go func() {
+		<-start
+		var p [10]byte
+		for i := 0; i < iterations; i++ {
+			if _, err := io.ReadFull(reader, p[:]); err != nil {
+				done <- err
+				return
+			}
+		}
+		done <- nil
+	}()
+
+	go func() {
+		<-start
+		for i := 0; i < iterations; i++ {
+			if _, err := ulid.New(uint64(i), reader); err != nil {
+				done <- err
+				return
+			}
+		}
+		done <- nil
+	}()
+
+	close(start)
+	for i := 0; i < 2; i++ {
+		if err := <-done; err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

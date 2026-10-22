@@ -134,9 +134,7 @@ func MustNewDefault(t time.Time) ULID {
 
 var defaultEntropy = func() io.Reader {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return &defaultEntropyReader{
-		LockedMonotonicReader: &LockedMonotonicReader{MonotonicReader: Monotonic(rng, 0)},
-	}
+	return &LockedMonotonicReader{MonotonicReader: Monotonic(rng, 0)}
 }()
 
 // DefaultEntropy returns a thread-safe per process monotonically increasing
@@ -602,21 +600,11 @@ type LockedMonotonicReader struct {
 	MonotonicReader
 }
 
-// defaultEntropyReader keeps direct DefaultEntropy reads serialized with
-// MonotonicRead using the same mutex. LockedMonotonicReader's promoted Read
-// bypasses that lock, so Read belongs on this private adapter. Adding Read to
-// LockedMonotonicReader would break its value-form io.Reader compatibility:
-// a pointer receiver shadows the promoted Read for values, while a value
-// receiver would copy the mutex.
-type defaultEntropyReader struct {
-	*LockedMonotonicReader
-}
-
-// Read synchronizes direct reads with monotonic reads on the default source.
-func (r *defaultEntropyReader) Read(p []byte) (int, error) {
-	r.LockedMonotonicReader.mu.Lock()
-	defer r.LockedMonotonicReader.mu.Unlock()
-	return r.LockedMonotonicReader.MonotonicReader.Read(p)
+// Read synchronizes calls to the wrapped MonotonicReader.
+func (r *LockedMonotonicReader) Read(p []byte) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.MonotonicReader.Read(p)
 }
 
 // MonotonicRead synchronizes calls to the wrapped MonotonicReader.
