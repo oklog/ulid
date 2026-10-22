@@ -600,6 +600,13 @@ type LockedMonotonicReader struct {
 	MonotonicReader
 }
 
+// Read synchronizes calls to the wrapped MonotonicReader.
+func (r *LockedMonotonicReader) Read(p []byte) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.MonotonicReader.Read(p)
+}
+
 // MonotonicRead synchronizes calls to the wrapped MonotonicReader.
 func (r *LockedMonotonicReader) MonotonicRead(ms uint64, p []byte) (err error) {
 	r.mu.Lock()

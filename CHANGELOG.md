@@ -1,3 +1,7 @@
+## Unreleased
+
+* Synchronize DefaultEntropy reads with monotonic generation.
+
 ## 1.3.1 / 2018-10-02
 
 * Use underlying entropy source for random increments in Monotonic (#32)

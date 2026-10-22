@@ -688,6 +688,129 @@ func TestMonotonicSafe(t *testing.T) {
 	}
 }
 
+func TestLockedMonotonicReaderRead(t *testing.T) {
+	t.Run("bytes", func(t *testing.T) {
+		want := []byte("entropy")
+		reader := &ulid.LockedMonotonicReader{MonotonicReader: ulid.Monotonic(bytes.NewReader(want), 0)}
+		got := make([]byte, len(want))
+
+		n, err := reader.Read(got)
+		if err != nil {
+			t.Fatalf("read entropy: %v", err)
+		}
+		if n != len(want) {
+			t.Fatalf("read %d bytes, want %d", n, len(want))
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("read %x, want %x", got, want)
+		}
+	})
+
+	t.Run("error", func(t *testing.T) {
+		wantErr := io.ErrUnexpectedEOF
+		reader := &ulid.LockedMonotonicReader{MonotonicReader: ulid.Monotonic(iotest.ErrReader(wantErr), 0)}
+		var p [10]byte
+
+		n, err := reader.Read(p[:])
+		if n != 0 || err != wantErr {
+			t.Fatalf("read returned (%d, %v), want (0, %v)", n, err, wantErr)
+		}
+	})
+}
+
+func TestLockedMonotonicReaderConcurrentReadAndNew(t *testing.T) {
+	const iterations = 4096
+
+	reader := &ulid.LockedMonotonicReader{MonotonicReader: ulid.Monotonic(rand.New(rand.NewSource(1)), 0)}
+	start := make(chan struct{})
+	done := make(chan error, 2)
+
+	go func() {
+		<-start
+		var p [10]byte
+		for i := 0; i < iterations; i++ {
+			if _, err := io.ReadFull(reader, p[:]); err != nil {
+				done <- err
+				return
+			}
+		}
+		done <- nil
+	}()
+
+	go func() {
+		<-start
+		for i := 0; i < iterations; i++ {
+			if _, err := ulid.New(uint64(i), reader); err != nil {
+				done <- err
+				return
+			}
+		}
+		done <- nil
+	}()
+
+	close(start)
+	for i := 0; i < 2; i++ {
+		if err := <-done; err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestDefaultEntropyMonotonicReader(t *testing.T) {
+	reader, ok := ulid.DefaultEntropy().(ulid.MonotonicReader)
+	if !ok {
+		t.Fatal("DefaultEntropy does not implement MonotonicReader")
+	}
+
+	const ms = 123
+	prev, err := ulid.New(ms, reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	next, err := ulid.New(ms, reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if prev.Compare(next) >= 0 {
+		t.Fatalf("ULIDs are not increasing: %v >= %v", prev, next)
+	}
+}
+
+func TestDefaultEntropyConcurrentReadAndMake(t *testing.T) {
+	const iterations = 4096
+
+	start := make(chan struct{})
+	done := make(chan error, 2)
+
+	go func() {
+		<-start
+		entropy := ulid.DefaultEntropy()
+		var p [10]byte
+		for i := 0; i < iterations; i++ {
+			if _, err := io.ReadFull(entropy, p[:]); err != nil {
+				done <- err
+				return
+			}
+		}
+		done <- nil
+	}()
+
+	go func() {
+		<-start
+		for i := 0; i < iterations; i++ {
+			_ = ulid.Make()
+		}
+		done <- nil
+	}()
+
+	close(start)
+	for i := 0; i < 2; i++ {
+		if err := <-done; err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestULID_Bytes(t *testing.T) {
 	tt := time.Unix(1000000, 0)
 	entropy := ulid.Monotonic(rand.New(rand.NewSource(tt.UnixNano())), 0)
@@ -709,6 +832,20 @@ func BenchmarkMustNew(b *testing.B) {
 	benchmarkMakeULID(b, func(timestamp uint64, entropy io.Reader) {
 		_ = ulid.MustNew(timestamp, entropy)
 	})
+}
+
+func BenchmarkDefaultEntropyRead(b *testing.B) {
+	entropy := ulid.DefaultEntropy()
+	var p [10]byte
+
+	b.ReportAllocs()
+	b.SetBytes(int64(len(p)))
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err := io.ReadFull(entropy, p[:]); err != nil {
+			b.Fatal(err)
+		}
+	}
 }
 
 func benchmarkMakeULID(b *testing.B, f func(uint64, io.Reader)) {
