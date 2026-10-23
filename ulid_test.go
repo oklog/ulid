@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"math/big"
 	"math/rand"
 	"strings"
 	"testing"
@@ -627,6 +628,110 @@ func TestMonotonic(t *testing.T) {
 			})
 		}
 	}
+}
+
+func TestMonotonicFullWidthIncrement(t *testing.T) {
+	t.Parallel()
+
+	for _, tt := range []struct {
+		inc   uint64
+		limit uint64
+	}{
+		{math.MaxInt64, math.MaxInt64},
+		{uint64(math.MaxInt64) + 1, uint64(math.MaxInt64) + 1},
+		{math.MaxUint64, math.MaxUint64},
+	} {
+		tt := tt
+		t.Run(fmt.Sprintf("inc=%d", tt.inc), func(t *testing.T) {
+			entropy := ulid.Monotonic(rand.New(rand.NewSource(1)), tt.inc)
+			prev, err := ulid.New(123, entropy)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			prevEntropy := new(big.Int).SetBytes(prev[6:])
+			if prevEntropy.Sign() == 0 {
+				t.Fatal("initial entropy is zero")
+			}
+
+			var next ulid.ULID
+			var nextErr error
+			var panicValue interface{}
+			func() {
+				defer func() { panicValue = recover() }()
+				next, nextErr = ulid.New(123, entropy)
+			}()
+			if panicValue != nil {
+				t.Fatalf("same-timestamp New panicked: %v", panicValue)
+			}
+			if nextErr != nil {
+				t.Fatal(nextErr)
+			}
+
+			delta := new(big.Int).Sub(new(big.Int).SetBytes(next[6:]), prevEntropy)
+			if delta.Sign() <= 0 || delta.Cmp(new(big.Int).SetUint64(tt.limit)) > 0 {
+				t.Fatalf("entropy increment %s is outside [1,%d]", delta, tt.limit)
+			}
+		})
+	}
+
+	t.Run("low-word-carry", func(t *testing.T) {
+		input := append([]byte{0, 1}, bytes.Repeat([]byte{0xff}, 8)...)
+		entropy := ulid.Monotonic(bytes.NewReader(input), 1)
+		prev, err := ulid.New(123, entropy)
+		if err != nil {
+			t.Fatal(err)
+		}
+		next, err := ulid.New(123, entropy)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		delta := new(big.Int).Sub(new(big.Int).SetBytes(next[6:]), new(big.Int).SetBytes(prev[6:]))
+		if delta.Cmp(big.NewInt(1)) != 0 {
+			t.Fatalf("entropy increment %s, want 1", delta)
+		}
+	})
+
+	t.Run("full-width-overflow", func(t *testing.T) {
+		input := append(bytes.Repeat([]byte{0xff}, 10), bytes.Repeat([]byte{0xff}, 8)...)
+		// The all-ones sample is rejected; each following sample
+		// yields an increment of 2.
+		sample := []byte{1, 0, 0, 0, 0, 0, 0, 0}
+		input = append(input, sample...)
+		input = append(input, sample...)
+		entropy := ulid.Monotonic(bytes.NewReader(input), math.MaxUint64)
+		maxEntropy := new(big.Int).Sub(new(big.Int).Lsh(big.NewInt(1), 80), big.NewInt(1))
+
+		prev, err := ulid.New(123, entropy)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := new(big.Int).SetBytes(prev[6:]); got.Cmp(maxEntropy) != 0 {
+			t.Fatalf("initial entropy %s, want %s", got, maxEntropy)
+		}
+
+		for attempt := 1; attempt <= 2; attempt++ {
+			if _, err := ulid.New(123, entropy); err != ulid.ErrMonotonicOverflow {
+				t.Fatalf("attempt %d: got error %v, want %v", attempt, err, ulid.ErrMonotonicOverflow)
+			}
+		}
+	})
+
+	t.Run("full-width-entropy-error", func(t *testing.T) {
+		readErr := io.ErrUnexpectedEOF
+		entropy := ulid.Monotonic(io.MultiReader(
+			bytes.NewReader(bytes.Repeat([]byte{0x01}, 10)),
+			bytes.NewReader([]byte{0x01, 0x02, 0x03}),
+			iotest.ErrReader(readErr),
+		), uint64(math.MaxInt64)+1)
+		if _, err := ulid.New(123, entropy); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := ulid.New(123, entropy); err != readErr {
+			t.Fatalf("got error %v, want %v", err, readErr)
+		}
+	})
 }
 
 func TestMonotonicOverflow(t *testing.T) {
