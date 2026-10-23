@@ -137,6 +137,10 @@ var defaultEntropy = func() io.Reader {
 	return &LockedMonotonicReader{MonotonicReader: Monotonic(rng, 0)}
 }()
 
+// defaultEntropyBuffer is shared scratch for Make. The default reader's mutex
+// protects it while it is filled and copied to a ULID.
+var defaultEntropyBuffer [10]byte
+
 // DefaultEntropy returns a thread-safe per process monotonically increasing
 // entropy source.
 func DefaultEntropy() io.Reader {
@@ -145,11 +149,36 @@ func DefaultEntropy() io.Reader {
 
 // Make returns a ULID with the current time in Unix milliseconds and
 // monotonically increasing entropy for the same millisecond.
-// It is safe for concurrent use, leveraging a sync.Pool underneath for minimal
-// contention.
+// It is safe for concurrent use.
 func Make() (id ULID) {
-	// NOTE: MustNew can't panic since DefaultEntropy never returns an error.
-	return MustNew(Now(), defaultEntropy)
+	id, err := makeDefault(Now())
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
+// makeDefault keeps the returned ULID out of the entropy reader interface.
+func makeDefault(ms uint64) (id ULID, err error) {
+	if err = id.SetTime(ms); err != nil {
+		return id, err
+	}
+
+	r := defaultEntropy.(*LockedMonotonicReader)
+	r.mu.Lock()
+	m, ok := r.MonotonicReader.(*MonotonicEntropy)
+	if !ok {
+		// Preserve New's reader dispatch for a non-default entropy source.
+		r.mu.Unlock()
+		return New(ms, r)
+	}
+
+	err = m.MonotonicRead(ms, defaultEntropyBuffer[:])
+	if err == nil {
+		copy(id[6:], defaultEntropyBuffer[:])
+	}
+	r.mu.Unlock()
+	return id, err
 }
 
 // Parse parses an encoded ULID, returning an error in case of failure.
