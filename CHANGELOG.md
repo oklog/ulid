@@ -1,3 +1,12 @@
+## Unreleased
+
+* Fix monotonic generation after an all-zero 80-bit entropy seed. If another
+  call uses the same timestamp, the zero seed previously selected reseeding
+  instead of incrementing. With independent uniform reads, the zero seed occurs
+  with probability 2^-80 (about 1 in 1.21e24); an actual duplicate also
+  requires the following read to be zero, making the two-read event 2^-160.
+  Other entropy readers can have different distributions.
+
 ## 1.3.1 / 2018-10-02
 
 * Use underlying entropy source for random increments in Monotonic (#32)
