@@ -613,19 +613,25 @@ type MonotonicEntropy struct {
 	io.Reader
 	ms      uint64
 	inc     uint64
-	entropy uint80
+	entropy monotonicState
 	rand    [8]byte
 	rng     rng
 }
 
 // MonotonicRead implements the MonotonicReader interface.
 func (m *MonotonicEntropy) MonotonicRead(ms uint64, entropy []byte) (err error) {
-	if !m.entropy.IsZero() && m.ms == ms {
+	if m.entropy.initialized && m.ms == ms {
+		previous := m.entropy
 		err = m.increment()
 		m.entropy.AppendTo(entropy)
+		if err != nil {
+			// Keep a failed increment from replacing the last successful state.
+			m.entropy = previous
+		}
 	} else if _, err = io.ReadFull(m.Reader, entropy); err == nil {
 		m.ms = ms
 		m.entropy.SetBytes(entropy)
+		m.entropy.initialized = true
 	}
 	return err
 }
@@ -694,29 +700,27 @@ func (m *MonotonicEntropy) random() (inc uint64, err error) {
 	return 1 + inc, nil
 }
 
-type uint80 struct {
-	Hi uint16
-	Lo uint64
+// monotonicState stores the 80-bit entropy and whether it has been initialized.
+type monotonicState struct {
+	Hi          uint16
+	initialized bool // Fits in the alignment padding before Lo.
+	Lo          uint64
 }
 
-func (u *uint80) SetBytes(bs []byte) {
+func (u *monotonicState) SetBytes(bs []byte) {
 	u.Hi = binary.BigEndian.Uint16(bs[:2])
 	u.Lo = binary.BigEndian.Uint64(bs[2:])
 }
 
-func (u *uint80) AppendTo(bs []byte) {
+func (u *monotonicState) AppendTo(bs []byte) {
 	binary.BigEndian.PutUint16(bs[:2], u.Hi)
 	binary.BigEndian.PutUint64(bs[2:], u.Lo)
 }
 
-func (u *uint80) Add(n uint64) (overflow bool) {
+func (u *monotonicState) Add(n uint64) (overflow bool) {
 	lo, hi := u.Lo, u.Hi
 	if u.Lo += n; u.Lo < lo {
 		u.Hi++
 	}
 	return u.Hi < hi
-}
-
-func (u uint80) IsZero() bool {
-	return u.Hi == 0 && u.Lo == 0
 }

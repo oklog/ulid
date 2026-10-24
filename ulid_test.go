@@ -16,6 +16,7 @@ package ulid_test
 import (
 	"bytes"
 	crand "crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 	"math"
@@ -629,6 +630,127 @@ func TestMonotonic(t *testing.T) {
 	}
 }
 
+type errorOnceReader struct {
+	prefix []byte
+	next   io.Reader
+	err    error
+	failed bool
+}
+
+func (r *errorOnceReader) Read(p []byte) (int, error) {
+	if !r.failed {
+		r.failed = true
+		return copy(p, r.prefix), r.err
+	}
+	return r.next.Read(p)
+}
+
+func TestMonotonicZeroEntropy(t *testing.T) {
+	for _, ms := range []uint64{123, 0} {
+		ms := ms
+		t.Run(fmt.Sprintf("timestamp=%d", ms), func(t *testing.T) {
+			entropy := ulid.Monotonic(
+				io.MultiReader(bytes.NewReader(make([]byte, 20)), crand.Reader),
+				1,
+			)
+			first, err := ulid.New(ms, entropy)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got, want := first.Entropy(), make([]byte, 10); !bytes.Equal(got, want) {
+				t.Fatalf("first entropy: got %x, want %x", got, want)
+			}
+
+			second, err := ulid.New(ms, entropy)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := make([]byte, 10)
+			want[len(want)-1] = 1
+			if got := second.Entropy(); !bytes.Equal(got, want) {
+				t.Fatalf("second entropy: got %x, want %x", got, want)
+			}
+		})
+	}
+
+	t.Run("nonzero initial entropy", func(t *testing.T) {
+		initial := bytes.Repeat([]byte{0xA5}, 10)
+		entropy := ulid.Monotonic(bytes.NewReader(initial), 1)
+		first, err := ulid.New(123, entropy)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := first.Entropy(); !bytes.Equal(got, initial) {
+			t.Fatalf("first entropy: got %x, want %x", got, initial)
+		}
+
+		second, err := ulid.New(123, entropy)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := append([]byte(nil), initial...)
+		want[len(want)-1]++
+		if got := second.Entropy(); !bytes.Equal(got, want) {
+			t.Fatalf("second entropy: got %x, want %x", got, want)
+		}
+	})
+
+	t.Run("changed timestamp", func(t *testing.T) {
+		firstEntropy := bytes.Repeat([]byte{0x12}, 10)
+		nextEntropy := bytes.Repeat([]byte{0x34}, 10)
+		input := append(append([]byte(nil), firstEntropy...), nextEntropy...)
+		entropy := ulid.Monotonic(bytes.NewReader(input), 1)
+
+		first, err := ulid.New(123, entropy)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := first.Entropy(); !bytes.Equal(got, firstEntropy) {
+			t.Fatalf("first entropy: got %x, want %x", got, firstEntropy)
+		}
+
+		second, err := ulid.New(124, entropy)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := second.Entropy(); !bytes.Equal(got, nextEntropy) {
+			t.Fatalf("entropy after timestamp change: got %x, want %x", got, nextEntropy)
+		}
+
+		third, err := ulid.New(124, entropy)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := append([]byte(nil), nextEntropy...)
+		want[len(want)-1]++
+		if got := third.Entropy(); !bytes.Equal(got, want) {
+			t.Fatalf("entropy after repeated timestamp: got %x, want %x", got, want)
+		}
+	})
+
+	t.Run("failed initial read", func(t *testing.T) {
+		readErr := errors.New("initial entropy read failed")
+		initial := bytes.Repeat([]byte{0x5A}, 10)
+		reader := &errorOnceReader{
+			prefix: []byte{0x01, 0x02},
+			next:   bytes.NewReader(initial),
+			err:    readErr,
+		}
+		entropy := ulid.Monotonic(reader, 1)
+
+		if _, err := ulid.New(123, entropy); err != readErr {
+			t.Fatalf("first read error: got %v, want %v", err, readErr)
+		}
+		second, err := ulid.New(123, entropy)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := second.Entropy(); !bytes.Equal(got, initial) {
+			t.Fatalf("entropy after retry: got %x, want %x", got, initial)
+		}
+	})
+}
+
 func TestMonotonicOverflow(t *testing.T) {
 	t.Parallel()
 
@@ -649,6 +771,46 @@ func TestMonotonicOverflow(t *testing.T) {
 	if have, want := err, ulid.ErrMonotonicOverflow; have != want {
 		t.Errorf("have ulid: %v %v err: %v, want err: %v",
 			next.Time(), next.Entropy(), have, want)
+	}
+}
+
+func TestMonotonicOverflowState(t *testing.T) {
+	t.Parallel()
+
+	initial := bytes.Repeat([]byte{0xFF}, 10)
+	input := append(append([]byte(nil), initial...), make([]byte, 20)...)
+	entropy := ulid.Monotonic(bytes.NewReader(input), 1)
+
+	first, err := ulid.New(123, entropy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := first.Entropy(); !bytes.Equal(got, initial) {
+		t.Fatalf("initial entropy: got %x, want %x", got, initial)
+	}
+
+	for i := 0; i < 2; i++ {
+		if _, err := ulid.New(123, entropy); err != ulid.ErrMonotonicOverflow {
+			t.Fatalf("same-timestamp call %d after maximum entropy: got err %v, want %v", i+2, err, ulid.ErrMonotonicOverflow)
+		}
+	}
+
+	reset, err := ulid.New(124, entropy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := reset.Entropy(), make([]byte, 10); !bytes.Equal(got, want) {
+		t.Fatalf("entropy after timestamp change: got %x, want %x", got, want)
+	}
+
+	next, err := ulid.New(124, entropy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := make([]byte, 10)
+	want[len(want)-1] = 1
+	if got := next.Entropy(); !bytes.Equal(got, want) {
+		t.Fatalf("entropy after timestamp reseed: got %x, want %x", got, want)
 	}
 }
 
