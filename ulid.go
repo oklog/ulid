@@ -584,7 +584,8 @@ func Monotonic(entropy io.Reader, inc uint64) *MonotonicEntropy {
 		m.inc = math.MaxUint32
 	}
 
-	if rng, ok := entropy.(rng); ok {
+	// Int63n accepts only signed bounds, so larger increments use the byte path.
+	if rng, ok := entropy.(rng); ok && m.inc <= math.MaxInt64 {
 		m.rng = rng
 	}
 
@@ -710,11 +711,16 @@ func (u *uint80) AppendTo(bs []byte) {
 }
 
 func (u *uint80) Add(n uint64) (overflow bool) {
-	lo, hi := u.Lo, u.Hi
-	if u.Lo += n; u.Lo < lo {
+	lo, carry := bits.Add64(u.Lo, n, 0)
+	if carry != 0 {
+		if u.Hi == math.MaxUint16 {
+			// Leave both words unchanged when the full 80-bit value overflows.
+			return true
+		}
 		u.Hi++
 	}
-	return u.Hi < hi
+	u.Lo = lo
+	return false
 }
 
 func (u uint80) IsZero() bool {

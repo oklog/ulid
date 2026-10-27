@@ -1,3 +1,7 @@
+## Unreleased
+
+* Handle full-width monotonic increments and keep entropy unchanged after overflow.
+
 ## 1.3.1 / 2018-10-02
 
 * Use underlying entropy source for random increments in Monotonic (#32)
