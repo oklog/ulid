@@ -132,14 +132,10 @@ func MustNewDefault(t time.Time) ULID {
 	return MustNew(Timestamp(t), defaultEntropy)
 }
 
-var defaultEntropy = func() io.Reader {
+var defaultEntropy = func() *lockedMonotonicEntropy {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return &LockedMonotonicReader{MonotonicReader: Monotonic(rng, 0)}
+	return &lockedMonotonicEntropy{MonotonicEntropy: Monotonic(rng, 0)}
 }()
-
-// defaultEntropyBuffer is shared scratch for Make. The default reader's mutex
-// protects it while it is filled and copied to a ULID.
-var defaultEntropyBuffer [10]byte
 
 // DefaultEntropy returns a thread-safe per process monotonically increasing
 // entropy source.
@@ -151,34 +147,14 @@ func DefaultEntropy() io.Reader {
 // monotonically increasing entropy for the same millisecond.
 // It is safe for concurrent use.
 func Make() (id ULID) {
-	id, err := makeDefault(Now())
-	if err != nil {
+	ms := Now()
+	if err := id.SetTime(ms); err != nil {
+		panic(err)
+	}
+	if err := defaultEntropy.monotonicRead(ms, id[6:]); err != nil {
 		panic(err)
 	}
 	return id
-}
-
-// makeDefault keeps the returned ULID out of the entropy reader interface.
-func makeDefault(ms uint64) (id ULID, err error) {
-	if err = id.SetTime(ms); err != nil {
-		return id, err
-	}
-
-	r := defaultEntropy.(*LockedMonotonicReader)
-	r.mu.Lock()
-	m, ok := r.MonotonicReader.(*MonotonicEntropy)
-	if !ok {
-		// Preserve New's reader dispatch for a non-default entropy source.
-		r.mu.Unlock()
-		return New(ms, r)
-	}
-
-	err = m.MonotonicRead(ms, defaultEntropyBuffer[:])
-	if err == nil {
-		copy(id[6:], defaultEntropyBuffer[:])
-	}
-	r.mu.Unlock()
-	return id, err
 }
 
 // Parse parses an encoded ULID, returning an error in case of failure.
@@ -643,6 +619,7 @@ type MonotonicEntropy struct {
 	ms      uint64
 	inc     uint64
 	entropy uint80
+	seed    [10]byte
 	rand    [8]byte
 	rng     rng
 }
@@ -657,6 +634,43 @@ func (m *MonotonicEntropy) MonotonicRead(ms uint64, entropy []byte) (err error) 
 		m.entropy.SetBytes(entropy)
 	}
 	return err
+}
+
+// monotonicRead is the Make fast path. It never passes the output slice to an
+// entropy reader; on a new timestamp it reads into the receiver's buffer first.
+func (m *MonotonicEntropy) monotonicRead(ms uint64, entropy []byte) error {
+	if !m.entropy.IsZero() && m.ms == ms {
+		err := m.increment()
+		m.entropy.AppendTo(entropy)
+		return err
+	}
+
+	n, err := io.ReadFull(m.Reader, m.seed[:])
+	copy(entropy, m.seed[:n])
+	if err != nil {
+		return err
+	}
+	m.ms = ms
+	m.entropy.SetBytes(m.seed[:])
+	return nil
+}
+
+// lockedMonotonicEntropy serializes access to the process-wide entropy state.
+type lockedMonotonicEntropy struct {
+	mu sync.Mutex
+	*MonotonicEntropy
+}
+
+func (r *lockedMonotonicEntropy) MonotonicRead(ms uint64, p []byte) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.MonotonicEntropy.MonotonicRead(ms, p)
+}
+
+func (r *lockedMonotonicEntropy) monotonicRead(ms uint64, p []byte) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.MonotonicEntropy.monotonicRead(ms, p)
 }
 
 // increment the previous entropy number with a random number
