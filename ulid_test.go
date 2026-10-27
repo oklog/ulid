@@ -720,11 +720,8 @@ func TestMonotonicFullWidthIncrement(t *testing.T) {
 
 	t.Run("full-width-entropy-error", func(t *testing.T) {
 		readErr := io.ErrUnexpectedEOF
-		entropy := ulid.Monotonic(io.MultiReader(
-			bytes.NewReader(bytes.Repeat([]byte{0x01}, 10)),
-			bytes.NewReader([]byte{0x01, 0x02, 0x03}),
-			iotest.ErrReader(readErr),
-		), uint64(math.MaxInt64)+1)
+		input := append(bytes.Repeat([]byte{0x01}, 10), 0x01, 0x02, 0x03)
+		entropy := ulid.Monotonic(bytes.NewReader(input), uint64(math.MaxInt64)+1)
 		if _, err := ulid.New(123, entropy); err != nil {
 			t.Fatal(err)
 		}
