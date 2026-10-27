@@ -711,17 +711,15 @@ func (u *uint80) AppendTo(bs []byte) {
 }
 
 func (u *uint80) Add(n uint64) (overflow bool) {
-	lo := u.Lo
-	u.Lo += n
-	if u.Lo >= lo {
-		return false
+	lo, carry := bits.Add64(u.Lo, n, 0)
+	if carry != 0 {
+		if u.Hi == math.MaxUint16 {
+			// Leave both words unchanged when the full 80-bit value overflows.
+			return true
+		}
+		u.Hi++
 	}
-	if u.Hi == ^uint16(0) {
-		// Restore the low word so overflow leaves both words unchanged.
-		u.Lo = lo
-		return true
-	}
-	u.Hi++
+	u.Lo = lo
 	return false
 }
 
