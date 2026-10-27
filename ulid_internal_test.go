@@ -36,9 +36,9 @@ func setDefaultMonotonicEntropy(t *testing.T, entropy MonotonicEntropy) {
 }
 
 func TestMakeSharesDefaultEntropy(t *testing.T) {
-	seed := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+	seed := make([]byte, 10)
 	setDefaultMonotonicEntropy(t, MonotonicEntropy{
-		Reader: bytes.NewReader(seed),
+		Reader: bytes.NewReader(bytes.Repeat([]byte{0}, 20)),
 		inc:    1,
 	})
 

@@ -616,22 +616,24 @@ func (r *LockedMonotonicReader) MonotonicRead(ms uint64, p []byte) (err error) {
 // MonotonicEntropy is an opaque type that provides monotonic entropy.
 type MonotonicEntropy struct {
 	io.Reader
-	ms      uint64
-	inc     uint64
-	entropy uint80
-	seed    [10]byte
-	rand    [8]byte
-	rng     rng
+	ms          uint64
+	inc         uint64
+	entropy     uint80
+	initialized bool // A zero entropy seed is valid state, not an uninitialized value.
+	seed        [10]byte
+	rand        [8]byte
+	rng         rng
 }
 
 // MonotonicRead implements the MonotonicReader interface.
 func (m *MonotonicEntropy) MonotonicRead(ms uint64, entropy []byte) (err error) {
-	if !m.entropy.IsZero() && m.ms == ms {
+	if m.initialized && m.ms == ms {
 		err = m.increment()
 		m.entropy.AppendTo(entropy)
 	} else if _, err = io.ReadFull(m.Reader, entropy); err == nil {
 		m.ms = ms
 		m.entropy.SetBytes(entropy)
+		m.initialized = true
 	}
 	return err
 }
@@ -639,7 +641,7 @@ func (m *MonotonicEntropy) MonotonicRead(ms uint64, entropy []byte) (err error) 
 // monotonicRead is the Make fast path. It never passes the output slice to an
 // entropy reader; on a new timestamp it reads into the receiver's buffer first.
 func (m *MonotonicEntropy) monotonicRead(ms uint64, entropy []byte) error {
-	if !m.entropy.IsZero() && m.ms == ms {
+	if m.initialized && m.ms == ms {
 		err := m.increment()
 		m.entropy.AppendTo(entropy)
 		return err
@@ -652,6 +654,7 @@ func (m *MonotonicEntropy) monotonicRead(ms uint64, entropy []byte) error {
 	}
 	m.ms = ms
 	m.entropy.SetBytes(m.seed[:])
+	m.initialized = true
 	return nil
 }
 
@@ -758,8 +761,4 @@ func (u *uint80) Add(n uint64) (overflow bool) {
 		u.Hi++
 	}
 	return u.Hi < hi
-}
-
-func (u uint80) IsZero() bool {
-	return u.Hi == 0 && u.Lo == 0
 }

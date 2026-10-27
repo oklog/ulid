@@ -587,6 +587,27 @@ func TestScan(t *testing.T) {
 	}
 }
 
+func TestMonotonicZeroEntropySeed(t *testing.T) {
+	t.Parallel()
+
+	entropy := ulid.Monotonic(bytes.NewReader(bytes.Repeat([]byte{0}, 20)), 1)
+	previous, err := ulid.New(123, entropy)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	next, err := ulid.New(123, entropy)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := previous
+	want[len(want)-1]++
+	if next != want {
+		t.Fatalf("zero-seed increment: got %v, want %v", next, want)
+	}
+}
+
 func TestMonotonic(t *testing.T) {
 	now := ulid.Now()
 	for _, e := range []struct {
