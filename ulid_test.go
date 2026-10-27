@@ -814,6 +814,15 @@ func BenchmarkMake(b *testing.B) {
 	}
 }
 
+func BenchmarkMakeParallel(b *testing.B) {
+	b.ReportAllocs()
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			_ = ulid.Make()
+		}
+	})
+}
+
 func benchmarkMakeULID(b *testing.B, f func(uint64, io.Reader)) {
 	b.ReportAllocs()
 	b.SetBytes(int64(len(ulid.ULID{})))
