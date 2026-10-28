@@ -675,7 +675,6 @@ func (r *lockedMonotonicEntropy) monotonicRead(ms uint64, p []byte) error {
 		return err
 	}
 
-	r.seed = [10]byte{}
 	err := r.monotonic.MonotonicRead(ms, r.seed[:])
 	copy(p, r.seed[:])
 	if err == nil {
