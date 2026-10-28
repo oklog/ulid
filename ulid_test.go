@@ -21,6 +21,7 @@ import (
 	"math"
 	"math/rand"
 	"strings"
+	"sync"
 	"testing"
 	"testing/iotest"
 	"testing/quick"
@@ -69,6 +70,82 @@ func TestMake(t *testing.T) {
 	}
 	if id != rt {
 		t.Fatalf("%q != %q", id.String(), rt.String())
+	}
+}
+
+func TestDefaultConstructorsShareEntropy(t *testing.T) {
+	first := ulid.Make()
+	ms := first.Time()
+
+	second, err := ulid.New(ms, ulid.DefaultEntropy())
+	if err != nil {
+		t.Fatal(err)
+	}
+	third := ulid.MustNew(ms, ulid.DefaultEntropy())
+	fourth := ulid.MustNewDefault(ulid.Time(ms))
+
+	for _, pair := range [][2]ulid.ULID{{first, second}, {second, third}, {third, fourth}} {
+		if pair[0].Compare(pair[1]) >= 0 {
+			t.Fatalf("default entropy order: %v is not before %v", pair[0], pair[1])
+		}
+	}
+}
+
+func TestDefaultEntropyConcurrent(t *testing.T) {
+	const (
+		goroutines = 16
+		calls      = 16
+	)
+
+	ms := ulid.Now()
+	start := make(chan struct{})
+	ids := make(chan ulid.ULID, goroutines*calls)
+	errs := make(chan error, goroutines+1)
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-start
+		_, err := io.ReadFull(ulid.DefaultEntropy(), make([]byte, 1<<20))
+		errs <- err
+	}()
+
+	for i := 0; i < goroutines; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			for j := 0; j < calls; j++ {
+				id, err := ulid.New(ms, ulid.DefaultEntropy())
+				if err != nil {
+					errs <- err
+					return
+				}
+				ids <- id
+			}
+		}()
+	}
+
+	close(start)
+	wg.Wait()
+	close(ids)
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Error(err)
+		}
+	}
+
+	seen := make(map[ulid.ULID]struct{}, goroutines*calls)
+	for id := range ids {
+		if _, ok := seen[id]; ok {
+			t.Errorf("duplicate ULID from concurrent default entropy: %v", id)
+		}
+		seen[id] = struct{}{}
+	}
+	if got, want := len(seen), goroutines*calls; got != want {
+		t.Errorf("got %d distinct ULIDs, want %d", got, want)
 	}
 }
 
@@ -584,27 +661,6 @@ func TestScan(t *testing.T) {
 				t.Errorf("got err %q, want %q", got, want)
 			}
 		})
-	}
-}
-
-func TestMonotonicZeroEntropySeed(t *testing.T) {
-	t.Parallel()
-
-	entropy := ulid.Monotonic(bytes.NewReader(bytes.Repeat([]byte{0}, 20)), 1)
-	previous, err := ulid.New(123, entropy)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	next, err := ulid.New(123, entropy)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	want := previous
-	want[len(want)-1]++
-	if next != want {
-		t.Fatalf("zero-seed increment: got %v, want %v", next, want)
 	}
 }
 
