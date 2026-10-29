@@ -74,14 +74,17 @@ func TestMake(t *testing.T) {
 }
 
 func TestMakeAllocations(t *testing.T) {
-	allocs := testing.AllocsPerRun(1000, func() {
-		benchmarkMakeSink = ulid.Make()
-	})
-	if benchmarkMakeSink.IsZero() {
-		t.Fatal("Make returned the zero ULID")
-	}
-	if allocs != 0 {
-		t.Fatalf("Make allocated %g times per call, want 0", allocs)
+	// One measured call per run prevents AllocsPerRun's integer average from rounding down.
+	for i := 0; i < 1000; i++ {
+		allocs := testing.AllocsPerRun(1, func() {
+			benchmarkMakeSink = ulid.Make()
+		})
+		if benchmarkMakeSink.IsZero() {
+			t.Fatal("Make returned the zero ULID")
+		}
+		if allocs != 0 {
+			t.Fatalf("Make allocated %g times per call, want 0", allocs)
+		}
 	}
 }
 
