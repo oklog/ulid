@@ -73,6 +73,18 @@ func TestMake(t *testing.T) {
 	}
 }
 
+func TestMakeAllocations(t *testing.T) {
+	allocs := testing.AllocsPerRun(1000, func() {
+		benchmarkMakeSink = ulid.Make()
+	})
+	if benchmarkMakeSink.IsZero() {
+		t.Fatal("Make returned the zero ULID")
+	}
+	if allocs != 0 {
+		t.Fatalf("Make allocated %g times per call, want 0", allocs)
+	}
+}
+
 func TestDefaultConstructorsShareEntropy(t *testing.T) {
 	first := ulid.Make()
 	ms := first.Time()
