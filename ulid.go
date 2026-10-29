@@ -128,20 +128,13 @@ func MustNew(ms uint64, entropy io.Reader) ULID {
 // MustNewDefault is a convenience function equivalent to MustNew with
 // DefaultEntropy as the entropy. It may panic if the given time.Time is too
 // large or too small.
-func MustNewDefault(t time.Time) (id ULID) {
-	ms := Timestamp(t)
-	if err := id.SetTime(ms); err != nil {
-		panic(err)
-	}
-	if err := defaultEntropy.monotonicRead(ms, id[6:]); err != nil {
-		panic(err)
-	}
-	return id
+func MustNewDefault(t time.Time) ULID {
+	return MustNew(Timestamp(t), defaultEntropy)
 }
 
-var defaultEntropy = func() *lockedMonotonicEntropy {
+var defaultEntropy = func() *LockedMonotonicEntropy {
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
-	return &lockedMonotonicEntropy{monotonic: Monotonic(rng, 0)}
+	return &LockedMonotonicEntropy{m: Monotonic(rng, 0)}
 }()
 
 // DefaultEntropy returns a thread-safe per process monotonically increasing
@@ -153,8 +146,15 @@ func DefaultEntropy() io.Reader {
 // Make returns a ULID with the current time in Unix milliseconds and
 // monotonically increasing entropy for the same millisecond.
 // It is safe for concurrent use.
-func Make() ULID {
-	return MustNewDefault(time.Now())
+func Make() (id ULID) {
+	ms := Now()
+	if err := id.SetTime(ms); err != nil {
+		panic(err)
+	}
+	if err := defaultEntropy.MonotonicRead(ms, id[6:]); err != nil {
+		panic(err)
+	}
+	return id
 }
 
 // Parse parses an encoded ULID, returning an error in case of failure.
@@ -605,6 +605,9 @@ type LockedMonotonicReader struct {
 	MonotonicReader
 }
 
+var _ MonotonicReader = (*LockedMonotonicReader)(nil)
+var _ io.Reader = (*LockedMonotonicReader)(nil)
+
 // MonotonicRead synchronizes calls to the wrapped MonotonicReader.
 func (r *LockedMonotonicReader) MonotonicRead(ms uint64, p []byte) (err error) {
 	r.mu.Lock()
@@ -613,82 +616,52 @@ func (r *LockedMonotonicReader) MonotonicRead(ms uint64, p []byte) (err error) {
 	return err
 }
 
+// LockedMonotonicEntropy is like LockedMonotonicReader, but wraps a concrete
+// MonotonicEntropy type, so callers' buffers don't escape to the heap.
+type LockedMonotonicEntropy struct {
+	mu sync.Mutex
+	m  *MonotonicEntropy
+}
+
+var _ MonotonicReader = (*LockedMonotonicEntropy)(nil)
+var _ io.Reader = (*LockedMonotonicEntropy)(nil)
+
+// Read synchronizes calls to the wrapped MonotonicEntropy.
+func (r *LockedMonotonicEntropy) Read(p []byte) (int, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.m.Read(p)
+}
+
+// MonotonicRead synchronizes calls to the wrapped MonotonicEntropy.
+func (r *LockedMonotonicEntropy) MonotonicRead(ms uint64, p []byte) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.m.MonotonicRead(ms, p)
+}
+
 // MonotonicEntropy is an opaque type that provides monotonic entropy.
 type MonotonicEntropy struct {
 	io.Reader
-	ms      uint64
-	inc     uint64
-	entropy uint80
-	rand    [8]byte
-	rng     rng
+	ms          uint64
+	inc         uint64
+	initialized bool
+	entropy     uint80
+	seed        [10]byte // reseed target, so the caller's entropy slice doesn't escape
+	rand        [8]byte
+	rng         rng
 }
 
 // MonotonicRead implements the MonotonicReader interface.
 func (m *MonotonicEntropy) MonotonicRead(ms uint64, entropy []byte) (err error) {
-	if !m.entropy.IsZero() && m.ms == ms {
+	if m.initialized && m.ms == ms {
 		err = m.increment()
 		m.entropy.AppendTo(entropy)
-	} else if _, err = io.ReadFull(m.Reader, entropy); err == nil {
+	} else if _, err = io.ReadFull(m.Reader, m.seed[:]); err == nil {
 		m.ms = ms
-		m.entropy.SetBytes(entropy)
-	}
-	return err
-}
-
-// lockedMonotonicEntropy serializes access to the wrapped monotonic source.
-type lockedMonotonicEntropy struct {
-	mu        sync.Mutex
-	monotonic *MonotonicEntropy
-	seed      [10]byte
-	zeroSeed  bool // True until a valid zero seed is incremented.
-}
-
-func (r *lockedMonotonicEntropy) Read(p []byte) (int, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	return r.monotonic.Read(p)
-}
-
-func (r *lockedMonotonicEntropy) MonotonicRead(ms uint64, p []byte) error {
-	r.mu.Lock()
-	if r.zeroSeed && r.monotonic.ms == ms {
-		err := r.increment(p)
-		r.mu.Unlock()
-		return err
-	}
-
-	err := r.monotonic.MonotonicRead(ms, p)
-	if err == nil {
-		r.zeroSeed = r.monotonic.ms == ms && r.monotonic.entropy.IsZero()
-	}
-	r.mu.Unlock()
-	return err
-}
-
-// monotonicRead is the value-construction path. A new seed is read into
-// wrapper-owned storage so the returned ULID's entropy slice never escapes.
-func (r *lockedMonotonicEntropy) monotonicRead(ms uint64, p []byte) error {
-	r.mu.Lock()
-	if r.zeroSeed && r.monotonic.ms == ms {
-		err := r.increment(p)
-		r.mu.Unlock()
-		return err
-	}
-
-	err := r.monotonic.MonotonicRead(ms, r.seed[:])
-	copy(p, r.seed[:])
-	if err == nil {
-		r.zeroSeed = r.monotonic.ms == ms && r.monotonic.entropy.IsZero()
-	}
-	r.mu.Unlock()
-	return err
-}
-
-func (r *lockedMonotonicEntropy) increment(p []byte) error {
-	err := r.monotonic.increment()
-	r.monotonic.entropy.AppendTo(p)
-	if r.zeroSeed && (err == nil || err == ErrMonotonicOverflow) {
-		r.zeroSeed = false
+		m.entropy.SetBytes(m.seed[:])
+		m.entropy.AppendTo(entropy)
+		m.initialized = true
 	}
 	return err
 }
