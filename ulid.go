@@ -649,38 +649,37 @@ func (r *lockedMonotonicEntropy) Read(p []byte) (int, error) {
 	return r.monotonic.Read(p)
 }
 
+// MonotonicRead synchronizes calls to the wrapped monotonic source.
 func (r *lockedMonotonicEntropy) MonotonicRead(ms uint64, p []byte) error {
 	r.mu.Lock()
-	if r.zeroSeed && r.monotonic.ms == ms {
-		err := r.increment(p)
-		r.mu.Unlock()
-		return err
-	}
-
-	err := r.monotonic.MonotonicRead(ms, p)
-	if err == nil {
-		r.zeroSeed = r.monotonic.ms == ms && r.monotonic.entropy.IsZero()
-	}
+	err := r.monotonicReadLocked(ms, p, p, false)
 	r.mu.Unlock()
 	return err
 }
 
-// monotonicRead is the value-construction path. A new seed is read into
-// wrapper-owned storage so the returned ULID's entropy slice never escapes.
+// monotonicRead uses wrapper-owned storage so the returned ULID's entropy
+// slice never reaches the wrapped reader interface.
 func (r *lockedMonotonicEntropy) monotonicRead(ms uint64, p []byte) error {
 	r.mu.Lock()
+	err := r.monotonicReadLocked(ms, p, r.seed[:], true)
+	r.mu.Unlock()
+	return err
+}
+
+// monotonicReadLocked applies the shared entropy state transition
+// while r.mu is held.
+func (r *lockedMonotonicEntropy) monotonicReadLocked(ms uint64, p, seed []byte, copySeedToOutput bool) error {
 	if r.zeroSeed && r.monotonic.ms == ms {
-		err := r.increment(p)
-		r.mu.Unlock()
-		return err
+		return r.increment(p)
 	}
 
-	err := r.monotonic.MonotonicRead(ms, r.seed[:])
-	copy(p, r.seed[:])
+	err := r.monotonic.MonotonicRead(ms, seed)
+	if copySeedToOutput {
+		copy(p, seed)
+	}
 	if err == nil {
 		r.zeroSeed = r.monotonic.ms == ms && r.monotonic.entropy.IsZero()
 	}
-	r.mu.Unlock()
 	return err
 }
 
